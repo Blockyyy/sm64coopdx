@@ -819,7 +819,8 @@ void DynOS_Level_Unoverride();
 const void *DynOS_Level_GetScript(s32 aLevel);
 s32 DynOS_Level_GetModIndex(s32 aLevel);
 bool DynOS_Level_IsVanillaLevel(s32 aLevel);
-s16 *DynOS_Level_GetWarp(s32 aLevel, s32 aArea, u8 aWarpId);
+Collision *DynOS_Level_GetCollision(u32 aLevel, u16 aArea);
+s16 *DynOS_Level_GetWarp(s32 aLevel, s32 aArea, s8 aWarpId);
 s16 *DynOS_Level_GetWarpEntry(s32 aLevel, s32 aArea);
 s16 *DynOS_Level_GetWarpDeath(s32 aLevel, s32 aArea);
 u64 DynOS_Level_CmdGet(void *aCmd, u64 aOffset);
@@ -848,6 +849,8 @@ const char*      DynOS_Builtin_Actor_GetFromData(const GeoLayout* aData);
 const GeoLayout* DynOS_Builtin_Actor_GetFromIndex(s32 aIndex);
 const char*      DynOS_Builtin_Actor_GetNameFromIndex(s32 aIndex);
 s32              DynOS_Builtin_Actor_GetCount();
+const MacroObject* DynOS_Builtin_LvlMacro_GetFromName(const char* aDataName);
+const char*      DynOS_Builtin_LvlMacro_GetFromData(const MacroObject* aData);
 const GeoLayout* DynOS_Builtin_LvlGeo_GetFromName(const char* aDataName);
 const char*      DynOS_Builtin_LvlGeo_GetFromData(const GeoLayout* aData);
 const Collision* DynOS_Builtin_Col_GetFromName(const char* aDataName);
@@ -881,8 +884,9 @@ void DynOS_Pack_AddTex(PackData* aPackData, DataNode<TexData>* aTexData);
 // Actor Manager
 //
 
-void DynOS_Actor_AddCustom(const SysPath &aFilename, const char *aActorName);
+void DynOS_Actor_AddCustom(s32 aModIndex, const SysPath &aFilename, const char *aActorName);
 const void *DynOS_Actor_GetLayoutFromName(const char *aActorName);
+bool DynOS_Actor_GetModIndexAndToken(const GraphNode *aGraphNode, u32 aTokenIndex, s32 *outModIndex, const char **outToken);
 ActorGfx* DynOS_Actor_GetActorGfx(const GraphNode* aGraphNode);
 void DynOS_Actor_Valid(const void* aGeoref, ActorGfx& aActorGfx);
 void DynOS_Actor_Invalid(const void* aGeoref, s32 aPackIndex);
@@ -968,6 +972,7 @@ struct GraphNode* DynOS_Model_GetGeo(u32 aId);
 u32 DynOS_Model_GetIdFromAsset(void* asset);
 u32 DynOS_Model_GetIdFromGraphNode(struct GraphNode* aNode);
 void DynOS_Model_OverwriteSlot(u32 srcSlot, u32 dstSlot);
+Gfx *DynOS_Model_Duplicate_DisplayList(Gfx* aGfx);
 void DynOS_Model_ClearPool(enum ModelPool aModelPool);
 
 //
@@ -976,7 +981,7 @@ void DynOS_Model_ClearPool(enum ModelPool aModelPool);
 
 typedef s64 (*RDConstantFunc)(const String& _Arg, bool* found);
 
-u32 DynOS_Lua_RememberVariable(GfxData* aGfxData, void* aPtr, String& token);
+u32 DynOS_Lua_RememberVariable(GfxData* aGfxData, void* aPtr, const String& token);
 void DynOS_Gfx_GeneratePacks(const char* directory);
 s64 DynOS_RecursiveDescent_Parse(const char* expr, bool* success, RDConstantFunc func);
 void DynOS_Read_Source(GfxData *aGfxData, const SysPath &aFilename);

@@ -79,6 +79,7 @@ struct FnGraphNode
 {
     /*0x00*/ struct GraphNode node;
     /*0x14*/ GraphNodeFunc func;
+    u32 luaTokenIndex; // reference to lua function resolved during geo_process_lua_function (1-indexed)
 };
 
 /** The very root of the geo tree. Specifies the viewport.
@@ -127,7 +128,7 @@ struct DisplayListNode
 {
     Mtx *transform;
     Mtx *transformPrev;
-    void *displayList;
+    Gfx *displayList;
     struct DisplayListNode *next;
     u8 usingCamSpace;
 };
@@ -213,7 +214,7 @@ struct GraphNodeCamera
 struct GraphNodeTranslationRotation
 {
     /*0x00*/ struct GraphNode node;
-    /*0x14*/ void *displayList;
+    /*0x14*/ Gfx *displayList;
     /*0x18*/ Vec3s translation;
     /*0x1E*/ Vec3s rotation;
 };
@@ -225,7 +226,7 @@ struct GraphNodeTranslationRotation
 struct GraphNodeTranslation
 {
     /*0x00*/ struct GraphNode node;
-    /*0x14*/ void *displayList;
+    /*0x14*/ Gfx *displayList;
     /*0x18*/ Vec3s translation;
     u8 pad1E[2];
 };
@@ -238,7 +239,7 @@ struct GraphNodeTranslation
 struct GraphNodeRotation
 {
     /*0x00*/ struct GraphNode node;
-    /*0x14*/ void *displayList;
+    /*0x14*/ Gfx *displayList;
     /*0x18*/ Vec3s rotation;
     Vec3s prevRotation;
     u32 prevTimestamp;
@@ -254,7 +255,7 @@ struct GraphNodeRotation
 struct GraphNodeAnimatedPart
 {
     /*0x00*/ struct GraphNode node;
-    /*0x14*/ void *displayList;
+    /*0x14*/ Gfx *displayList;
     /*0x18*/ Vec3s translation;
 };
 
@@ -266,7 +267,7 @@ struct GraphNodeAnimatedPart
 struct GraphNodeBillboard
 {
     /*0x00*/ struct GraphNode node;
-    /*0x14*/ void *displayList;
+    /*0x14*/ Gfx *displayList;
     /*0x18*/ Vec3s translation;
 };
 
@@ -276,7 +277,7 @@ struct GraphNodeBillboard
 struct GraphNodeDisplayList
 {
     /*0x00*/ struct GraphNode node;
-    /*0x14*/ void *displayList;
+    /*0x14*/ Gfx *displayList;
 };
 
 /** GraphNode part that scales itself and its children.
@@ -290,7 +291,7 @@ struct GraphNodeDisplayList
 struct GraphNodeScale
 {
     /*0x00*/ struct GraphNode node;
-    /*0x14*/ void *displayList;
+    /*0x14*/ Gfx *displayList;
     /*0x18*/ f32 scale;
     /*????*/ f32 prevScale;
 };
@@ -431,6 +432,7 @@ struct GraphNode *geo_add_child(struct GraphNode *parent, struct GraphNode *chil
 struct GraphNode* geo_remove_child_from_parent(struct GraphNode* parent, struct GraphNode* graphNode);
 struct GraphNode *geo_remove_child(struct GraphNode *graphNode);
 struct GraphNode *geo_make_first_child(struct GraphNode *newFirstChild);
+struct GraphNode *geo_find_shared_child(struct GraphNode *graphNode);
 
 void geo_call_global_function_nodes_helper(struct GraphNode *graphNode, s32 callContext);
 void geo_call_global_function_nodes(struct GraphNode *graphNode, s32 callContext);

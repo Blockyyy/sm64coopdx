@@ -14,7 +14,7 @@
 #include "engine/math_util.h"
 #include "pc/configfile.h"
 
-float smoothstep(float edge0, float edge1, float x) {
+float smooth_step(float edge0, float edge1, float x) {
     float t = (x - edge0) / (edge1 - edge0);
     if (t < 0) { t = 0; }
     if (t > 1) { t = 1; }
@@ -84,6 +84,12 @@ u32 clock_elapsed_ticks(void) {
     return (clock_elapsed_ns() * 3 / 100000000);
 }
 
+bool clock_is_date(u8 month, u8 day) {
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    return tm_info->tm_mon == month - 1 && tm_info->tm_mday == day;
+}
+
 void file_get_line(char* buffer, size_t maxLength, FILE* fp) {
     char* initial = buffer;
 
@@ -121,20 +127,8 @@ next_get:
 
 /////////////////
 
-static f32 sm64_to_radians(f32 val) {
-    return val * M_PI / 0x8000;
-}
-
-static f32 radians_to_sm64(f32 val) {
-    return val * 0x8000 / M_PI;
-}
-
-static f32 asins(f32 val) {
-    return radians_to_sm64(asin(sm64_to_radians(val)));
-}
-
-f32 delta_interpolate_f32(f32 start, f32 end, f32 delta) {
-    return start * (1.0f - delta) + end * delta;
+f32 delta_interpolate_f32(f32 a, f32 b, f32 delta) {
+    return a * (1.0f - delta) + b * delta;
 }
 
 s32 delta_interpolate_s32(s32 a, s32 b, f32 delta) {
@@ -579,4 +573,19 @@ void str_seperator_concat(char *output_buffer, int buffer_size, char** strings, 
             buffer_index += seperator_length;
         }
     }
+}
+
+char *str_remove_color_codes(const char *str) {
+    char *output = strdup(str);
+    char *startColor;
+    while ((startColor = strstr(output, "\\#"))) {
+        char *endColor = strchr(startColor + 2, '\\');
+        if (endColor) {
+            memmove(startColor, endColor + 1, strlen(endColor + 1) + 1);
+        } else {
+            *startColor = 0;
+            break;
+        }
+    }
+    return output;
 }

@@ -111,12 +111,16 @@ void dynos_actor_override(struct Object* obj, void** aSharedChild) {
     DynOS_Actor_Override(obj, aSharedChild);
 }
 
-void dynos_add_actor_custom(const char *filePath, const char* geoName) {
-    DynOS_Actor_AddCustom(filePath, geoName);
+void dynos_add_actor_custom(s32 modIndex, const char *filePath, const char* geoName) {
+    DynOS_Actor_AddCustom(modIndex, filePath, geoName);
 }
 
 const void* dynos_geolayout_get(const char *name) {
     return DynOS_Actor_GetLayoutFromName(name);
+}
+
+bool dynos_actor_get_mod_index_and_token(struct GraphNode *graphNode, u32 tokenIndex, s32 *modIndex, const char **token) {
+    return DynOS_Actor_GetModIndexAndToken(graphNode, tokenIndex, modIndex, token);
 }
 
 // -- collisions -- //
@@ -210,6 +214,10 @@ bool dynos_level_is_vanilla_level(s32 level) {
     return DynOS_Level_IsVanillaLevel(level);
 }
 
+Collision *dynos_level_get_collision(u32 level, u16 area) {
+    return DynOS_Level_GetCollision(level, area);
+}
+
 // -- Behaviors -- //
 
 void dynos_add_behavior(s32 modIndex, const char *filePath, const char *behaviorName) {
@@ -260,6 +268,10 @@ struct GraphNode* dynos_model_get_geo(u32 aId) {
 
 void dynos_model_overwrite_slot(u32 srcSlot, u32 dstSlot) {
     DynOS_Model_OverwriteSlot(srcSlot, dstSlot);
+}
+
+Gfx *dynos_model_duplicate_displaylist(Gfx* gfx) {
+    return DynOS_Model_Duplicate_DisplayList(gfx);
 }
 
 // -- other -- //

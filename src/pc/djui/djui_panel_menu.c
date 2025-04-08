@@ -1,6 +1,7 @@
 #include "djui.h"
 #include "djui_panel.h"
 #include "djui_unicode.h"
+#include "djui_panel_menu.h"
 #include "pc/utils/misc.h"
 #include "pc/configfile.h"
 
@@ -11,6 +12,13 @@ char* sRainbowColors[] = {
     "\\#40e740\\",
     "\\#40b0ff\\",
     "\\#ffef40\\",
+};
+
+char* sExCoopRainbowColors[] = {
+    "\\#ff0800\\",
+    "\\#1be700\\",
+    "\\#00b3ff\\",
+    "\\#ffef00\\",
 };
 
 char sRainbowText[RAINBOW_TEXT_LEN + 1] = { 0 };
@@ -28,7 +36,7 @@ static void generate_rainbow_text(char* text) {
         }
         s32 restrictSize = RAINBOW_TEXT_LEN - (s32)(dst - sRainbowText);
         if (restrictSize <= 0) { break; }
-        snprintf(dst, restrictSize, "%s", sRainbowColors[i++ % 4]);
+        snprintf(dst, restrictSize, "%s", configExCoopTheme ? sExCoopRainbowColors[i++ % 4] : sRainbowColors[i++ % 4]);
         dst = &sRainbowText[strlen(sRainbowText)];
 
         restrictSize = RAINBOW_TEXT_LEN - (s32)(dst - sRainbowText);
@@ -40,6 +48,11 @@ static void generate_rainbow_text(char* text) {
 
         src = djui_unicode_next_char(src);
     }
+}
+
+char* djui_menu_get_rainbow_string_color(enum DjuiRainbowColor color) {
+    int i = (color >= 0 && color <= 3) ? color : 0;
+    return configExCoopTheme ? sExCoopRainbowColors[i] : sRainbowColors[i];
 }
 
 void djui_panel_menu_back(UNUSED struct DjuiBase* base) {
@@ -75,7 +88,11 @@ struct DjuiThreePanel* djui_panel_menu_create(char* headerText, bool forcedLeftS
         djui_base_set_location(&header->base, 0, DJUI_PANEL_HEADER_OFFSET);
         djui_text_set_alignment(header, DJUI_HALIGN_CENTER, DJUI_VALIGN_BOTTOM);
         djui_text_set_font(header, hudFontHeader ? gDjuiFonts[2] : gDjuiFonts[1]);
-        djui_text_set_font_scale(header, gDjuiFonts[1]->defaultFontScale * (hudFontHeader ? 0.7f : 1.0f) * (strlen(headerText) > 15 ? 0.9f : 1.0f));
+        if (configExCoopTheme) {
+            djui_text_set_font_scale(header, gDjuiFonts[1]->defaultFontScale);
+        } else {
+            djui_text_set_font_scale(header, gDjuiFonts[1]->defaultFontScale * (hudFontHeader ? 0.7f : 1.0f) * (strlen(headerText) > 15 ? 0.9f : 1.0f));
+        }
 
         struct DjuiFlowLayout* body = djui_flow_layout_create(&panel->base);
         djui_base_set_alignment(&body->base, DJUI_HALIGN_CENTER, DJUI_VALIGN_CENTER);

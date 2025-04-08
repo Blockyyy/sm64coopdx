@@ -65,6 +65,7 @@ static kb_callback_t kb_key_down = NULL;
 static kb_callback_t kb_key_up = NULL;
 static void (*kb_all_keys_up)(void) = NULL;
 static void (*kb_text_input)(char*) = NULL;
+static void (*kb_text_editing)(char*, int) = NULL;
 
 #define IS_FULLSCREEN() ((SDL_GetWindowFlags(wnd) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0)
 
@@ -211,6 +212,9 @@ static void gfx_sdl_handle_events(void) {
             case SDL_TEXTINPUT:
                 kb_text_input(event.text.text);
                 break;
+            case SDL_TEXTEDITING: //IME composition
+                kb_text_editing(event.edit.text,event.edit.start);
+                break;
             case SDL_KEYDOWN:
                 gfx_sdl_onkeydown(event.key.keysym.scancode);
                 break;
@@ -249,11 +253,14 @@ static void gfx_sdl_handle_events(void) {
     }
 }
 
-static void gfx_sdl_set_keyboard_callbacks(kb_callback_t on_key_down, kb_callback_t on_key_up, void (*on_all_keys_up)(void), void (*on_text_input)(char*)) {
+static void gfx_sdl_set_keyboard_callbacks(kb_callback_t on_key_down, kb_callback_t on_key_up,
+void (*on_all_keys_up)(void), void (*on_text_input)(char*), void (*on_text_editing)(char*, int))
+{
     kb_key_down = on_key_down;
     kb_key_up = on_key_up;
     kb_all_keys_up = on_all_keys_up;
     kb_text_input = on_text_input;
+    kb_text_editing = on_text_editing;
 }
 
 static bool gfx_sdl_start_frame(void) {
@@ -304,8 +311,19 @@ static bool gfx_sdl_has_focus(void) {
 
 static void gfx_sdl_start_text_input(void) { SDL_StartTextInput(); }
 static void gfx_sdl_stop_text_input(void) { SDL_StopTextInput(); }
-static char* gfx_sdl_get_clipboard_text(void) { return SDL_GetClipboardText(); }
-static void gfx_sdl_set_clipboard_text(char* text) { SDL_SetClipboardText(text); }
+
+static char* gfx_sdl_get_clipboard_text(void) {
+    static char clipboard_buf[WAPI_CLIPBOARD_BUFSIZ];
+
+    char* text = SDL_GetClipboardText();
+    strncpy(clipboard_buf, text, WAPI_CLIPBOARD_BUFSIZ - 1);
+    SDL_free(text);
+
+    clipboard_buf[WAPI_CLIPBOARD_BUFSIZ - 1] = '\0';
+    return clipboard_buf;
+}
+
+static void gfx_sdl_set_clipboard_text(const char* text) { SDL_SetClipboardText(text); }
 static void gfx_sdl_set_cursor_visible(bool visible) { SDL_ShowCursor(visible ? SDL_ENABLE : SDL_DISABLE); }
 
 struct GfxWindowManagerAPI gfx_sdl = {

@@ -5,7 +5,9 @@
 #include "djui_panel_pause.h"
 #include "djui_panel_join.h"
 #include "djui_panel_join_message.h"
+#include "djui_ctx_display.h"
 #include "djui_fps_display.h"
+#include "djui_lua_profiler.h"
 #include "../debuglog.h"
 #include "pc/cliopts.h"
 #include "game/level_update.h"
@@ -26,6 +28,7 @@ bool gDjuiInPlayerMenu = false;
 bool gDjuiDisabled = false;
 bool gDjuiShuttingDown = false;
 static bool sDjuiInited = false;
+static struct DjuiRoot* sDjuiRootBehind = NULL;
 
 bool sDjuiRendered60fps = false;
 
@@ -52,6 +55,8 @@ void djui_shutdown(void) {
     }
 
     djui_fps_display_destroy();
+    djui_ctx_display_destroy();
+    djui_lua_profiler_destroy();
 
     gDjuiShuttingDown = false;
     sDjuiInited = false;
@@ -75,13 +80,13 @@ void patch_djui_interpolated(UNUSED f32 delta) {
 
 void djui_init(void) {
     gDjuiRoot = djui_root_create();
+    sDjuiRootBehind = djui_root_create();
 
-    gDjuiPauseOptions = djui_text_create(&gDjuiRoot->base, DLANG(MISC, R_BUTTON));
+    gDjuiPauseOptions = djui_text_create(&sDjuiRootBehind->base, DLANG(MISC, R_BUTTON));
     djui_base_set_size_type(&gDjuiPauseOptions->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
     djui_base_set_size(&gDjuiPauseOptions->base, 1.0f, 32);
     djui_base_set_location(&gDjuiPauseOptions->base, 0, 16);
     djui_text_set_alignment(gDjuiPauseOptions, DJUI_HALIGN_CENTER, DJUI_VALIGN_CENTER);
-    djui_base_set_visible(&gDjuiPauseOptions->base, false);
 
     sDjuiLuaError = djui_text_create(&gDjuiRoot->base, "");
     djui_base_set_size_type(&sDjuiLuaError->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
@@ -97,6 +102,8 @@ void djui_init(void) {
     djui_console_create();
 
     djui_fps_display_create();
+    djui_ctx_display_create();
+    djui_lua_profiler_create();
 
     sDjuiInited = true;
 }
@@ -128,6 +135,11 @@ void djui_lua_error(char* text, struct DjuiColor color) {
     sDjuiLuaErrorTimeout = 30 * 5;
 }
 
+void djui_lua_error_clear(void) {
+    sDjuiLuaErrorTimeout = 0;
+    djui_base_set_visible(&sDjuiLuaError->base, false);
+}
+
 void djui_reset_hud_params(void) {
     djui_hud_set_resolution(RESOLUTION_DJUI);
     djui_hud_set_font(FONT_NORMAL);
@@ -146,18 +158,22 @@ void djui_render(void) {
     create_dl_ortho_matrix();
     djui_gfx_displaylist_begin();
 
+    if (sDjuiRootBehind != NULL && (sCurrPlayMode == PLAY_MODE_PAUSED) && !gDjuiPanelPauseCreated) {
+        djui_base_render(&sDjuiRootBehind->base);
+    }
+
     smlua_call_event_on_hud_render(djui_reset_hud_params);
 
     djui_panel_update();
     djui_popup_update();
 
-    djui_base_set_visible(&gDjuiPauseOptions->base, (sCurrPlayMode == PLAY_MODE_PAUSED));
-    djui_base_set_visible(&gDjuiPauseOptions->base, (sCurrPlayMode == PLAY_MODE_PAUSED) && !gDjuiPanelPauseCreated);
     if (gDjuiRoot != NULL) {
         djui_base_render(&gDjuiRoot->base);
     }
 
     djui_fps_display_render();
+    djui_ctx_display_render();
+    djui_lua_profiler_render();
 
     if (sDjuiLuaErrorTimeout > 0) {
         sDjuiLuaErrorTimeout--;

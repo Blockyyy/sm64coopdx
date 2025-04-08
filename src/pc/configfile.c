@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <ctype.h>
 
-#include "pc_main.h"
 #include "platform.h"
 #include "configfile.h"
 #include "cliopts.h"
@@ -21,6 +20,7 @@
 #include "debuglog.h"
 #include "djui/djui_hud_utils.h"
 #include "game/save_file.h"
+#include "pc/network/network_player.h"
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -57,8 +57,6 @@ struct FunctionConfigOption {
 /*
  *Config options and default values
  */
-
-static_assert(NUM_SAVE_FILES == 4); // update this if more save slots are added
 char configSaveNames[4][MAX_SAVE_NAME_STRING] = {
     "SM64",
     "SM64",
@@ -128,16 +126,29 @@ bool         configBackgroundGamepad              = true;
 bool         configDisableGamepads                = false;
 bool         configUseStandardKeyBindingsChat     = false;
 // free camera settings
-bool         configEnableCamera                   = false;
-bool         configCameraAnalog                   = false;
-bool         configCameraMouse                    = false;
+bool         configEnableFreeCamera               = false;
+bool         configFreeCameraAnalog               = false;
+bool         configFreeCameraLCentering           = false;
+bool         configFreeCameraDPadBehavior         = false;
+bool         configFreeCameraHasCollision         = true;
+bool         configFreeCameraMouse                = false;
+unsigned int configFreeCameraXSens                = 50;
+unsigned int configFreeCameraYSens                = 50;
+unsigned int configFreeCameraAggr                 = 0;
+unsigned int configFreeCameraPan                  = 0;
+unsigned int configFreeCameraDegrade              = 50; // 0 - 100%
+// romhack camera settings
+unsigned int configEnableRomhackCamera            = 0; // 0 for automatic, 1 for force on, 2 for force off
+bool         configRomhackCameraBowserFights      = false;
+bool         configRomhackCameraHasCollision      = true;
+bool         configRomhackCameraHasCentering      = false;
+bool         configRomhackCameraDPadBehavior      = false;
+bool         configRomhackCameraSlowFall          = true;
+
+// common camera settings
 bool         configCameraInvertX                  = false;
 bool         configCameraInvertY                  = true;
-unsigned int configCameraXSens                    = 50;
-unsigned int configCameraYSens                    = 50;
-unsigned int configCameraAggr                     = 0;
-unsigned int configCameraPan                      = 0;
-unsigned int configCameraDegrade                  = 50; // 0 - 100%
+bool         configCameraToxicGas                 = true;
 // debug
 bool         configLuaProfiler                    = false;
 bool         configDebugPrint                     = false;
@@ -151,7 +162,7 @@ char         configPlayerName[MAX_CONFIG_STRING]  = "";
 unsigned int configPlayerModel                    = 0;
 struct PlayerPalette configPlayerPalette          = { { { 0x00, 0x00, 0xff }, { 0xff, 0x00, 0x00 }, { 0xff, 0xff, 0xff }, { 0x72, 0x1c, 0x0e }, { 0x73, 0x06, 0x00 }, { 0xfe, 0xc1, 0x79 }, { 0xff, 0x00, 0x00 }, { 0xff, 0x00, 0x00 } } };
 // coop settings
-unsigned int configAmountofPlayers                = MAX_PLAYERS;
+unsigned int configAmountOfPlayers                = MAX_PLAYERS;
 bool         configBubbleDeath                    = true;
 unsigned int configHostPort                       = DEFAULT_PORT;
 unsigned int configHostSaveSlot                   = 1;
@@ -167,12 +178,13 @@ bool         configSkipIntro                      = 0;
 bool         configPauseAnywhere                  = false;
 bool         configMenuStaffRoll                  = false;
 unsigned int configMenuLevel                      = 0;
-bool         configMenuSound                      = false;
+unsigned int configMenuSound                      = 0;
 bool         configMenuRandom                     = false;
 bool         configMenuDemos                      = false;
 bool         configDisablePopups                  = false;
 char         configLanguage[MAX_CONFIG_STRING]    = "";
 bool         configDynosLocalPlayerModelOnly      = false;
+unsigned int configPvpType                        = PLAYER_PVP_CLASSIC;
 // CoopNet settings
 char         configCoopNetIp[MAX_CONFIG_STRING]   = DEFAULT_COOPNET_IP;
 unsigned int configCoopNetPort                    = DEFAULT_COOPNET_PORT;
@@ -189,6 +201,11 @@ unsigned int configDjuiThemeFont                  = FONT_NORMAL;
 unsigned int configDjuiScale                      = 0;
 // other
 unsigned int configRulesVersion                   = 0;
+bool         configCompressOnStartup              = false;
+bool         configSkipPackGeneration             = false;
+
+// secrets
+bool configExCoopTheme = false;
 
 static const struct ConfigOption options[] = {
     // window settings
@@ -249,16 +266,28 @@ static const struct ConfigOption options[] = {
 #endif
     {.name = "use_standard_key_bindings_chat", .type = CONFIG_TYPE_BOOL, .boolValue = &configUseStandardKeyBindingsChat},
     // free camera settings
-    {.name = "bettercam_enable",               .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableCamera},
-    {.name = "bettercam_analog",               .type = CONFIG_TYPE_BOOL, .boolValue = &configCameraAnalog},
-    {.name = "bettercam_mouse_look",           .type = CONFIG_TYPE_BOOL, .boolValue = &configCameraMouse},
+    {.name = "bettercam_enable",               .type = CONFIG_TYPE_BOOL, .boolValue = &configEnableFreeCamera},
+    {.name = "bettercam_analog",               .type = CONFIG_TYPE_BOOL, .boolValue = &configFreeCameraAnalog},
+    {.name = "bettercam_centering",            .type = CONFIG_TYPE_BOOL, .boolValue = &configFreeCameraLCentering},
+    {.name = "bettercam_dpad",                 .type = CONFIG_TYPE_BOOL, .boolValue = &configFreeCameraDPadBehavior},
+    {.name = "bettercam_collision",            .type = CONFIG_TYPE_BOOL, .boolValue = &configFreeCameraHasCollision},
+    {.name = "bettercam_mouse_look",           .type = CONFIG_TYPE_BOOL, .boolValue = &configFreeCameraMouse},
+    {.name = "bettercam_xsens",                .type = CONFIG_TYPE_UINT, .uintValue = &configFreeCameraXSens},
+    {.name = "bettercam_ysens",                .type = CONFIG_TYPE_UINT, .uintValue = &configFreeCameraYSens},
+    {.name = "bettercam_aggression",           .type = CONFIG_TYPE_UINT, .uintValue = &configFreeCameraAggr},
+    {.name = "bettercam_pan_level",            .type = CONFIG_TYPE_UINT, .uintValue = &configFreeCameraPan},
+    {.name = "bettercam_degrade",              .type = CONFIG_TYPE_UINT, .uintValue = &configFreeCameraDegrade},
+    // romhack camera settings
+    {.name = "romhackcam_enable",              .type = CONFIG_TYPE_UINT, .uintValue = &configEnableRomhackCamera},
+    {.name = "romhackcam_bowser",              .type = CONFIG_TYPE_BOOL, .boolValue = &configRomhackCameraBowserFights},
+    {.name = "romhackcam_collision",           .type = CONFIG_TYPE_BOOL, .boolValue = &configRomhackCameraHasCollision},
+    {.name = "romhackcam_centering",           .type = CONFIG_TYPE_BOOL, .boolValue = &configRomhackCameraHasCentering},
+    {.name = "romhackcam_dpad",                .type = CONFIG_TYPE_BOOL, .boolValue = &configRomhackCameraDPadBehavior},
+    {.name = "romhackcam_slowfall",            .type = CONFIG_TYPE_BOOL, .boolValue = &configRomhackCameraSlowFall},
+    // common camera settings
     {.name = "bettercam_invertx",              .type = CONFIG_TYPE_BOOL, .boolValue = &configCameraInvertX},
     {.name = "bettercam_inverty",              .type = CONFIG_TYPE_BOOL, .boolValue = &configCameraInvertY},
-    {.name = "bettercam_xsens",                .type = CONFIG_TYPE_UINT, .uintValue = &configCameraXSens},
-    {.name = "bettercam_ysens",                .type = CONFIG_TYPE_UINT, .uintValue = &configCameraYSens},
-    {.name = "bettercam_aggression",           .type = CONFIG_TYPE_UINT, .uintValue = &configCameraAggr},
-    {.name = "bettercam_pan_level",            .type = CONFIG_TYPE_UINT, .uintValue = &configCameraPan},
-    {.name = "bettercam_degrade",              .type = CONFIG_TYPE_UINT, .uintValue = &configCameraDegrade},
+    {.name = "romhackcam_toxic_gas",           .type = CONFIG_TYPE_BOOL, .boolValue = &configCameraToxicGas},
     // debug
     {.name = "debug_offset",                   .type = CONFIG_TYPE_U64,  .u64Value    = &gPcDebug.bhvOffset},
     {.name = "debug_tags",                     .type = CONFIG_TYPE_U64,  .u64Value    = gPcDebug.tags},
@@ -281,7 +310,7 @@ static const struct ConfigOption options[] = {
     {.name = "coop_player_palette_cap",        .type = CONFIG_TYPE_COLOR,  .colorValue  = &configPlayerPalette.parts[CAP]},
     {.name = "coop_player_palette_emblem",     .type = CONFIG_TYPE_COLOR,  .colorValue  = &configPlayerPalette.parts[EMBLEM]},
     // coop settings
-    {.name = "amount_of_players",              .type = CONFIG_TYPE_UINT,   .uintValue   = &configAmountofPlayers},
+    {.name = "amount_of_players",              .type = CONFIG_TYPE_UINT,   .uintValue   = &configAmountOfPlayers},
     {.name = "bubble_death",                   .type = CONFIG_TYPE_BOOL,   .boolValue   = &configBubbleDeath},
     {.name = "coop_host_port",                 .type = CONFIG_TYPE_UINT,   .uintValue   = &configHostPort},
     {.name = "coop_host_save_slot",            .type = CONFIG_TYPE_UINT,   .uintValue   = &configHostSaveSlot},
@@ -297,8 +326,9 @@ static const struct ConfigOption options[] = {
     {.name = "pause_anywhere",                 .type = CONFIG_TYPE_BOOL,   .boolValue   = &configPauseAnywhere},
     {.name = "coop_menu_staff_roll",           .type = CONFIG_TYPE_BOOL,   .boolValue   = &configMenuStaffRoll},
     {.name = "coop_menu_level",                .type = CONFIG_TYPE_UINT,   .uintValue   = &configMenuLevel},
-    {.name = "coop_menu_sound",                .type = CONFIG_TYPE_BOOL,   .boolValue   = &configMenuSound},
+    {.name = "coop_menu_sound",                .type = CONFIG_TYPE_UINT,   .uintValue   = &configMenuSound},
     {.name = "coop_menu_random",               .type = CONFIG_TYPE_BOOL,   .boolValue   = &configMenuRandom},
+    {.name = "player_pvp_mode",                .type = CONFIG_TYPE_UINT,   .uintValue   = &configPvpType},
     // {.name = "coop_menu_demos",                .type = CONFIG_TYPE_BOOL,   .boolValue   = &configMenuDemos},
     {.name = "disable_popups",                 .type = CONFIG_TYPE_BOOL,   .boolValue   = &configDisablePopups},
     {.name = "language",                       .type = CONFIG_TYPE_STRING, .stringValue = (char*)&configLanguage, .maxStringLength = MAX_CONFIG_STRING},
@@ -314,7 +344,28 @@ static const struct ConfigOption options[] = {
     {.name = "djui_theme_font",                .type = CONFIG_TYPE_UINT,   .uintValue   = &configDjuiThemeFont},
     {.name = "djui_scale",                     .type = CONFIG_TYPE_UINT,   .uintValue   = &configDjuiScale},
     // other
-    {.name = "rules_version",                  .type = CONFIG_TYPE_UINT,   .uintValue   = &configRulesVersion}
+    {.name = "rules_version",                  .type = CONFIG_TYPE_UINT,   .uintValue   = &configRulesVersion},
+    {.name = "compress_on_startup",            .type = CONFIG_TYPE_BOOL,   .boolValue   = &configCompressOnStartup},
+    {.name = "skip_pack_generation",           .type = CONFIG_TYPE_BOOL,   .boolValue   = &configSkipPackGeneration},
+};
+
+struct SecretConfigOption {
+    const char *name;
+    enum ConfigOptionType type;
+    union {
+        bool *boolValue;
+        unsigned int *uintValue;
+        float* floatValue;
+        char* stringValue;
+        u64* u64Value;
+        u8 (*colorValue)[3];
+    };
+    int maxStringLength;
+    bool inConfig;
+};
+
+static struct SecretConfigOption secret_options[] = {
+    {.name = "ex_coop_theme", .type = CONFIG_TYPE_BOOL, .boolValue = &configExCoopTheme},
 };
 
 // FunctionConfigOption functions
@@ -337,6 +388,8 @@ void enable_queued_mods(void) {
 }
 
 static void enable_mod_read(char** tokens, UNUSED int numTokens) {
+    if (gCLIOpts.disableMods) { return; }
+
     char combined[256] = { 0 };
     for (int i = 1; i < numTokens; i++) {
         if (i != 1) { strncat(combined, " ", 255); }
@@ -345,6 +398,19 @@ static void enable_mod_read(char** tokens, UNUSED int numTokens) {
 
     struct QueuedFile* queued = malloc(sizeof(struct QueuedFile));
     queued->path = strdup(combined);
+    queued->next = NULL;
+    if (!sQueuedEnableModsHead) {
+        sQueuedEnableModsHead = queued;
+    } else {
+        struct QueuedFile* tail = sQueuedEnableModsHead;
+        while (tail->next) { tail = tail->next; }
+        tail->next = queued;
+    }
+}
+
+static void enable_mod(char* mod) {
+    struct QueuedFile* queued = malloc(sizeof(struct QueuedFile));
+    queued->path = mod;
     queued->next = NULL;
     if (!sQueuedEnableModsHead) {
         sQueuedEnableModsHead = queued;
@@ -622,6 +688,15 @@ static void configfile_load_internal(const char *filename, bool* error) {
                     }
                 }
 
+                // secret options
+                for (unsigned int i = 0; i < ARRAY_LEN(secret_options); i++) {
+                    if (strcmp(tokens[0], secret_options[i].name) == 0) {
+                        secret_options[i].inConfig = true;
+                        option = (const struct ConfigOption *) &secret_options[i];
+                        break;
+                    }
+                }
+
                 if (option == NULL) {
 #ifdef DEVELOPMENT
                     printf("unknown option '%s'\n", tokens[0]);
@@ -684,8 +759,6 @@ NEXT_OPTION:
 
     fs_close(file);
 
-    if ((int)configWindow.msaa > WAPI.get_max_msaa()) { configWindow.msaa = WAPI.get_max_msaa(); }
-
     if (configFrameLimit < 30)   { configFrameLimit = 30; }
     if (configFrameLimit > 3000) { configFrameLimit = 3000; }
 
@@ -693,6 +766,29 @@ NEXT_OPTION:
 
     if (configDjuiTheme >= DJUI_THEME_MAX) { configDjuiTheme = 0; }
     if (configDjuiScale >= 5) { configDjuiScale = 0; }
+
+    if (gCLIOpts.fullscreen == 1) {
+        configWindow.fullscreen = true;
+    } else if (gCLIOpts.fullscreen == 2) {
+        configWindow.fullscreen = false;
+    }
+    if (gCLIOpts.width != 0) { configWindow.w = gCLIOpts.width; }
+    if (gCLIOpts.height != 0) { configWindow.h = gCLIOpts.height; }
+
+    if (gCLIOpts.playerName[0]) { snprintf(configPlayerName, MAX_CONFIG_STRING, "%s", gCLIOpts.playerName); }
+
+    if (!network_player_name_valid(configPlayerName)) {
+        snprintf(configPlayerName, MAX_CONFIG_STRING, "Player");
+    }
+
+    for (int i = 0; i < gCLIOpts.enabledModsCount; i++) {
+        enable_mod(gCLIOpts.enableMods[i]);
+    }
+    free(gCLIOpts.enableMods);
+
+    if (gCLIOpts.playerCount != 0) {
+        configAmountOfPlayers = MIN(gCLIOpts.playerCount, MAX_PLAYERS);
+    }
 
 #ifndef COOPNET
     configNetworkSystem = NS_SOCKET;
@@ -713,6 +809,42 @@ void configfile_load(void) {
 #endif
 }
 
+static void configfile_save_option(FILE *file, const struct ConfigOption *option, bool isSecret) {
+    if (isSecret) {
+        const struct SecretConfigOption *secret_option = (const struct SecretConfigOption *) option;
+        if (!secret_option->inConfig) { return; }
+    }
+    switch (option->type) {
+        case CONFIG_TYPE_BOOL:
+            fprintf(file, "%s %s\n", option->name, *option->boolValue ? "true" : "false");
+            break;
+        case CONFIG_TYPE_UINT:
+            fprintf(file, "%s %u\n", option->name, *option->uintValue);
+            break;
+        case CONFIG_TYPE_FLOAT:
+            fprintf(file, "%s %f\n", option->name, *option->floatValue);
+            break;
+        case CONFIG_TYPE_BIND:
+            fprintf(file, "%s ", option->name);
+            for (int i = 0; i < MAX_BINDS; ++i)
+                fprintf(file, "%04x ", option->uintValue[i]);
+            fprintf(file, "\n");
+            break;
+        case CONFIG_TYPE_STRING:
+            fprintf(file, "%s %s\n", option->name, option->stringValue);
+            break;
+        case CONFIG_TYPE_U64:
+            fprintf(file, "%s %llu\n", option->name, *option->u64Value);
+            break;
+        case CONFIG_TYPE_COLOR:
+            fprintf(file, "%s %02x %02x %02x\n", option->name, (*option->colorValue)[0], (*option->colorValue)[1], (*option->colorValue)[2]);
+            break;
+        default:
+            LOG_ERROR("Configfile wrote bad type '%d': %s", (int)option->type, option->name);
+            break;
+    }
+}
+
 // Writes the config file to 'filename'
 void configfile_save(const char *filename) {
     FILE *file;
@@ -727,36 +859,12 @@ void configfile_save(const char *filename) {
 
     for (unsigned int i = 0; i < ARRAY_LEN(options); i++) {
         const struct ConfigOption *option = &options[i];
+        configfile_save_option(file, option, false);
+    }
 
-        switch (option->type) {
-            case CONFIG_TYPE_BOOL:
-                fprintf(file, "%s %s\n", option->name, *option->boolValue ? "true" : "false");
-                break;
-            case CONFIG_TYPE_UINT:
-                fprintf(file, "%s %u\n", option->name, *option->uintValue);
-                break;
-            case CONFIG_TYPE_FLOAT:
-                fprintf(file, "%s %f\n", option->name, *option->floatValue);
-                break;
-            case CONFIG_TYPE_BIND:
-                fprintf(file, "%s ", option->name);
-                for (int i = 0; i < MAX_BINDS; ++i)
-                    fprintf(file, "%04x ", option->uintValue[i]);
-                fprintf(file, "\n");
-                break;
-            case CONFIG_TYPE_STRING:
-                fprintf(file, "%s %s\n", option->name, option->stringValue);
-                break;
-            case CONFIG_TYPE_U64:
-                fprintf(file, "%s %llu\n", option->name, *option->u64Value);
-                break;
-            case CONFIG_TYPE_COLOR:
-                fprintf(file, "%s %02x %02x %02x\n", option->name, (*option->colorValue)[0], (*option->colorValue)[1], (*option->colorValue)[2]);
-                break;
-            default:
-                LOG_ERROR("Configfile wrote bad type '%d': %s", (int)option->type, option->name);
-                break;
-        }
+    for (unsigned int i = 0; i < ARRAY_LEN(secret_options); i++) {
+        const struct ConfigOption *option = (const struct ConfigOption *) &secret_options[i];
+        configfile_save_option(file, option, true);
     }
 
     // save function options

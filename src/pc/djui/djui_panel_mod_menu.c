@@ -28,14 +28,14 @@ void djui_panel_mod_menu_mod_button(struct DjuiBase* caller) {
     }
 }
 
-void djui_panel_mod_menu_mod_checkbox(struct DjuiBase* caller) {
+static void djui_panel_mod_menu_mod_checkbox(struct DjuiBase* caller) {
     struct LuaHookedModMenuElement* hooked = &gHookedModMenuElements[caller->tag];
     smlua_call_mod_menu_element_hook(hooked, caller->tag);
     struct DjuiCheckbox* checkbox = (struct DjuiCheckbox*)caller;
     djui_text_set_text(checkbox->text, hooked->name);
 }
 
-void djui_panel_mod_menu_mod_slider(struct DjuiBase* caller) {
+static void djui_panel_mod_menu_mod_slider(struct DjuiBase* caller) {
     struct LuaHookedModMenuElement* hooked = &gHookedModMenuElements[caller->tag];
     smlua_call_mod_menu_element_hook(hooked, caller->tag);
     struct DjuiSlider* slider = (struct DjuiSlider*)caller;
@@ -52,6 +52,17 @@ static void djui_panel_mod_menu_mod_inputbox(struct DjuiBase* caller) {
 static void djui_panel_mod_menu_mod_create_element(struct DjuiBase* parent, int i) {
     struct LuaHookedModMenuElement* hooked = &gHookedModMenuElements[i];
     switch (hooked->element) {
+        case MOD_MENU_ELEMENT_TEXT: {
+            struct DjuiText* text = djui_text_create(parent, hooked->name);
+            djui_base_set_size_type(&text->base, DJUI_SVT_RELATIVE, DJUI_SVT_ABSOLUTE);
+            djui_base_set_color(&text->base, 220, 220, 220, 255);
+            djui_base_set_size(&text->base, 1.0f, 64);
+            djui_base_set_alignment(&text->base, DJUI_HALIGN_LEFT, DJUI_VALIGN_TOP);
+            djui_text_set_alignment(text, DJUI_HALIGN_CENTER, DJUI_VALIGN_TOP);
+            djui_text_set_drop_shadow(text, 64, 64, 64, 100);
+            text->base.tag = i;
+            break;
+        }
         case MOD_MENU_ELEMENT_BUTTON: {
             struct DjuiButton* button = djui_button_create(parent, hooked->name, DJUI_BUTTON_STYLE_NORMAL, djui_panel_mod_menu_mod_button);
             button->base.tag = i;
@@ -87,7 +98,9 @@ static void djui_panel_mod_menu_mod_create_element(struct DjuiBase* parent, int 
             }
             break;
         }
-        case MOD_MENU_ELEMENT_MAX:
+        case MOD_MENU_ELEMENT_MAX: {
+            break;
+        }
     }
 }
 
@@ -105,12 +118,15 @@ void djui_panel_mod_menu_mod_create(struct DjuiBase* caller) {
     {
         struct DjuiPaginated* paginated = djui_paginated_create(body, 8);
         struct DjuiBase* layoutBase = &paginated->layout->base;
+        s32 count = 0;
         for (int i = 0; i < gHookedModMenuElementsCount; i++) {
             if (gHookedModMenuElements[i].mod == mod) {
                 djui_panel_mod_menu_mod_create_element(layoutBase, i);
+                count++;
             }
         }
         djui_paginated_calculate_height(paginated);
+        djui_base_set_size(layoutBase, layoutBase->width.value, 650);
 
         djui_button_create(body, DLANG(MENU, BACK), DJUI_BUTTON_STYLE_BACK, djui_panel_menu_back);
     }

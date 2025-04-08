@@ -1,5 +1,3 @@
-#if defined(RAPI_DUMMY) || defined(WAPI_DUMMY)
-
 #ifdef WIN32
 #include <windows.h>
 #elif _POSIX_C_SOURCE >= 199309L
@@ -49,7 +47,8 @@ static void sleep_ms(int milliseconds) { // cross-platform sleep function
 static void gfx_dummy_wm_init(UNUSED const char *game_name) {
 }
 
-static void gfx_dummy_wm_set_keyboard_callbacks(UNUSED kb_callback_t on_key_down, UNUSED kb_callback_t on_key_up, UNUSED void (*on_all_keys_up)(void), UNUSED void (*on_text_input)(char*)) {
+static void gfx_dummy_wm_set_keyboard_callbacks(UNUSED kb_callback_t on_key_down, UNUSED kb_callback_t on_key_up, UNUSED void (*on_all_keys_up)(void),
+                                                UNUSED void (*on_text_input)(char*), UNUSED void (*on_text_editing)(char*, int)) {
 }
 
 static void gfx_dummy_wm_set_fullscreen_changed_callback(UNUSED void (*on_fullscreen_changed)(bool is_now_fullscreen)) {
@@ -113,7 +112,7 @@ static void gfx_dummy_wm_start_text_input(void) {
 static void gfx_dummy_wm_stop_text_input(void) {
 }
 
-static void gfx_dummy_wm_set_clipboard_text(UNUSED char* text) {
+static void gfx_dummy_wm_set_clipboard_text(UNUSED const char* text) {
 }
 
 static void gfx_dummy_wm_set_cursor_visible(UNUSED bool visible) {
@@ -247,4 +246,3 @@ struct GfxRenderingAPI gfx_dummy_renderer_api = {
     gfx_dummy_renderer_finish_render,
     gfx_dummy_renderer_shutdown
 };
-#endif

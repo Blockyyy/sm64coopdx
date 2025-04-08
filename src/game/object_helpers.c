@@ -185,6 +185,12 @@ Gfx *geo_switch_anim_state(s32 callContext, struct GraphNode *node) {
     return NULL;
 }
 
+s16 gRoomOverride = -1;
+
+void set_room_override(s16 room) {
+    gRoomOverride = room;
+}
+
 //! @bug Same issue as geo_switch_anim_state.
 #ifdef AVOID_UB
 Gfx *geo_switch_area(s32 callContext, struct GraphNode *node, UNUSED void *context) {
@@ -198,7 +204,9 @@ Gfx *geo_switch_area(s32 callContext, struct GraphNode *node) {
     struct GraphNodeSwitchCase *switchCase = (struct GraphNodeSwitchCase *) node;
 
     if (callContext == GEO_CONTEXT_RENDER) {
-        if (gMarioObject == NULL) {
+        if (gRoomOverride >= 0) {
+            switchCase->selectedCase = gRoomOverride - 1;
+        } else if (gMarioObject == NULL) {
             switchCase->selectedCase = 0;
         } else {
             gFindFloorIncludeSurfaceIntangible = TRUE;
@@ -2635,7 +2643,8 @@ s32 cur_obj_is_mario_ground_pounding_platform(void) {
         if (!is_player_active(&gMarioStates[i])) { continue; }
         if (!gMarioStates[i].marioObj) { continue; }
         if (gMarioStates[i].marioObj->platform == o) {
-            if ((determine_interaction(&gMarioStates[i], o) & INT_GROUND_POUND) || (gMarioStates[i].action == ACT_GROUND_POUND_LAND)) {
+            u32 interaction = determine_interaction(&gMarioStates[i], o);
+            if ((gMarioStates[i].action == ACT_GROUND_POUND_LAND) || (interaction & INT_GROUND_POUND && interaction & INT_LUA)) {
                 return TRUE;
             }
         }

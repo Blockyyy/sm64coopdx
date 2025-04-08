@@ -45,9 +45,10 @@
 #include "spawn_sound.h"
 #include "game/rng_position.h"
 #include "rumble_init.h"
-#include "hardcoded.h"
 #include "pc/lua/utils/smlua_model_utils.h"
 #include "pc/lua/smlua_hooks.h"
+#include "hardcoded.h"
+#include "engine/lighting_engine.h"
 
 #define o gCurrentObject
 
@@ -72,14 +73,6 @@ struct Struct8032F698 {
     s16 unk2;
     s16 unk3;
     s16 unk4;
-};
-
-struct Struct802C0DF0 {
-    u8 unk0;
-    u8 unk1;
-    u8 unk2;
-    u8 model;
-    const BehaviorScript *behavior;
 };
 
 struct Struct8032F754 {
@@ -285,3 +278,4 @@ s32 set_obj_anim_with_accel_and_sound(s16 a0, s16 a1, s32 a2) {
 #include "behaviors/sl_snowman_wind.inc.c"
 #include "behaviors/sl_walking_penguin.inc.c"
 #include "behaviors/texscroll.inc.c"
+#include "behaviors/light.inc.c"

@@ -41,6 +41,8 @@
 #include "pc/configfile.h"
 #include "pc/network/network.h"
 #include "pc/djui/djui.h"
+// used for getting gMainMenuSounds
+#include "pc/djui/djui_panel_menu_options.h"
 #include "pc/lua/smlua_hooks.h"
 #include "pc/mods/mods.h"
 #include "pc/nametags.h"
@@ -249,7 +251,7 @@ u16 level_control_timer(s32 timerOp) {
 
 u32 pressed_pause(void) {
     if (gServerSettings.pauseAnywhere) {
-        if (get_dialog_id() < 0 && !gWarpTransition.isActive && sDelayedWarpOp == WARP_OP_NONE) {
+        if (get_dialog_id() < 0 && sCurrPlayMode == PLAY_MODE_NORMAL && sDelayedWarpOp == WARP_OP_NONE) {
             return gPlayer1Controller->buttonPressed & START_BUTTON;
         }
     } else {
@@ -353,10 +355,10 @@ void set_mario_initial_action(struct MarioState *m, u32 spawnType, u32 actionArg
         case MARIO_SPAWN_DOOR_WARP:
             set_mario_action(m, ACT_WARP_DOOR_SPAWN, actionArg);
             break;
-        case MARIO_SPAWN_UNKNOWN_02:
+        case MARIO_SPAWN_IDLE:
             set_mario_action(m, ACT_IDLE, 0);
             break;
-        case MARIO_SPAWN_UNKNOWN_03:
+        case MARIO_SPAWN_PIPE:
             set_mario_action(m, ACT_EMERGE_FROM_PIPE, 0);
             break;
         case MARIO_SPAWN_TELEPORT:
@@ -473,7 +475,7 @@ void init_mario_after_warp(void) {
     sDelayedWarpOp = WARP_OP_NONE;
 
     switch (marioSpawnType) {
-        case MARIO_SPAWN_UNKNOWN_03:
+        case MARIO_SPAWN_PIPE:
             play_transition(WARP_TRANSITION_FADE_FROM_STAR, 0x10, 0x00, 0x00, 0x00);
             break;
         case MARIO_SPAWN_DOOR_WARP:
@@ -488,7 +490,7 @@ void init_mario_after_warp(void) {
         case MARIO_SPAWN_SPIN_AIRBORNE_CIRCLE:
             play_transition(WARP_TRANSITION_FADE_FROM_CIRCLE, 0x10, 0x00, 0x00, 0x00);
             break;
-        case MARIO_SPAWN_UNKNOWN_27:
+        case MARIO_SPAWN_FADE_FROM_BLACK:
             play_transition(WARP_TRANSITION_FADE_FROM_COLOR, 0x10, 0x00, 0x00, 0x00);
             break;
         default:
@@ -632,6 +634,14 @@ void warp_credits(void) {
     }
 }
 
+struct InstantWarp *get_instant_warp(u8 index) {
+    if (index >= 4) { return NULL; }
+    if (!gCurrentArea) { return NULL; }
+    if (gCurrentArea->instantWarps == NULL) { return NULL; }
+
+    return &gCurrentArea->instantWarps[index];
+}
+
 void check_instant_warp(void) {
     if (!gCurrentArea) { return; }
     s16 cameraAngle;
@@ -745,7 +755,7 @@ s16 music_changed_through_warp(s16 arg) {
 /**
  * Set the current warp type and destination level/area/node.
  */
-void initiate_warp(s16 destLevel, s16 destArea, s16 destWarpNode, s32 arg3) {
+void initiate_warp(s16 destLevel, s16 destArea, s16 destWarpNode, s32 arg) {
     if (destWarpNode >= WARP_NODE_CREDITS_MIN) {
         sWarpDest.type = WARP_TYPE_CHANGE_LEVEL;
     } else if (destLevel != gCurrLevelNum) {
@@ -759,7 +769,7 @@ void initiate_warp(s16 destLevel, s16 destArea, s16 destWarpNode, s32 arg3) {
     sWarpDest.levelNum = destLevel;
     sWarpDest.areaIdx = destArea;
     sWarpDest.nodeId = destWarpNode;
-    sWarpDest.arg = arg3;
+    sWarpDest.arg = arg;
 }
 
 /**
@@ -1119,7 +1129,7 @@ void update_hud_values(void) {
                             play_sound(SOUND_GENERAL_COLLECT_1UP, gGlobalSoundSource);
                         }
                     } else {
-                        if (gHudDisplay.coins % gLevelValues.numCoinsToLife == 0 && gHudDisplay.coins > 0) {
+                        if (gLevelValues.numCoinsToLife != 0 && gHudDisplay.coins % gLevelValues.numCoinsToLife == 0 && gHudDisplay.coins > 0) {
                             gMarioState->numLives++;
                             play_sound(SOUND_GENERAL_COLLECT_1UP, gGlobalSoundSource);
                         }
@@ -1334,7 +1344,13 @@ s32 play_mode_paused(void) {
         gCameraMovementFlags &= ~CAM_MOVE_PAUSE_SCREEN;
         set_play_mode(PLAY_MODE_NORMAL);
     } else if (gPauseScreenMode == 2) {
-        level_trigger_warp(&gMarioStates[0], WARP_OP_EXIT);
+        extern s16 gPrevMenuMode;
+        if (gPrevMenuMode > 1) { // Course complete screen
+            raise_background_noise(1);
+            gCameraMovementFlags &= ~CAM_MOVE_PAUSE_SCREEN;
+        } else { // Pause menu
+            level_trigger_warp(&gMarioStates[0], WARP_OP_EXIT);
+        }
         set_play_mode(PLAY_MODE_NORMAL);
     } else if (gPauseScreenMode == 3) {
         // Exit level
@@ -1491,16 +1507,20 @@ void update_menu_level(void) {
 
     // figure out music
     stop_cap_music();
-    if (!configMenuSound || configMenuStaffRoll || curLevel == LEVEL_CASTLE_GROUNDS) {
-        reset_volume();
-        disable_background_sound();
-        set_background_music(0, SEQ_MENU_TITLE_SCREEN, 0);
-    } else {
-        reset_volume();
-        disable_background_sound();
-        if (gCurrentArea != NULL) {
+    reset_volume();
+    disable_background_sound();
+    if (gMainMenuSounds[configMenuSound].sound == STAGE_MUSIC) {
+        // if staff roll is on, set configMenuSound to Title Screen sequence, or 0
+        if (configMenuStaffRoll) {
+            configMenuSound = 0;
+        }
+        if (curLevel == LEVEL_CASTLE_GROUNDS) {
+            set_background_music(0, SEQ_MENU_FILE_SELECT, 0);
+        } else if (gCurrentArea != NULL) {
             set_background_music(gCurrentArea->musicParam, gCurrentArea->musicParam2, 0);
         }
+    } else {
+        set_background_music(0, gMainMenuSounds[configMenuSound].sound, 0);
     }
 
     if (configMenuStaffRoll) {
@@ -1900,16 +1920,17 @@ s32 lvl_init_from_save_file(UNUSED s16 arg0, s16 levelNum) {
     return levelNum;
 }
 
-s32 lvl_set_current_level(UNUSED s16 arg0, s16 levelNum) {
+s32 lvl_set_current_level(s16 arg0, s16 levelNum) {
     s32 warpCheckpointActive = sWarpCheckpointActive;
+    s16 level = arg0 != 0 ? arg0 : levelNum;
 
     sWarpCheckpointActive = FALSE;
-    gCurrLevelNum = levelNum;
-    gCurrCourseNum = get_level_course_num(levelNum);
+    gCurrLevelNum = level;
+    gCurrCourseNum = get_level_course_num(level);
 
     bool foundHook = false;
     bool hookUseActSelect = false;
-    smlua_call_event_hooks_use_act_select(HOOK_USE_ACT_SELECT, levelNum, &foundHook, &hookUseActSelect);
+    smlua_call_event_hooks_use_act_select(HOOK_USE_ACT_SELECT, level, &foundHook, &hookUseActSelect);
 
     if (!foundHook || !hookUseActSelect) {
         if (gCurrDemoInput != NULL || gCurrCreditsEntry != NULL || gCurrCourseNum == COURSE_NONE) {

@@ -10,6 +10,7 @@
 // forward declare
 struct Camera;
 
+// ! Hooks must be added at the end
 enum LuaHookedEventType {
     HOOK_UPDATE,
     HOOK_MARIO_UPDATE,
@@ -57,6 +58,13 @@ enum LuaHookedEventType {
     HOOK_ON_ATTACK_OBJECT,
     HOOK_ON_LANGUAGE_CHANGED,
     HOOK_ON_MODS_LOADED,
+    HOOK_ON_NAMETAGS_RENDER,
+    HOOK_ON_DJUI_THEME_CHANGED,
+    HOOK_ON_GEO_PROCESS,
+    HOOK_BEFORE_GEO_PROCESS,
+    HOOK_ON_GEO_PROCESS_CHILDREN,
+    HOOK_MARIO_OVERRIDE_GEOMETRY_INPUTS,
+    HOOK_ON_INTERACTIONS,
     HOOK_MAX,
 };
 
@@ -107,6 +115,13 @@ static const char* LuaHookedEventTypeName[] = {
     "HOOK_ON_ATTACK_OBJECT",
     "HOOK_ON_LANGUAGE_CHANGED",
     "HOOK_ON_MODS_LOADED",
+    "HOOK_ON_NAMETAGS_RENDER",
+    "HOOK_ON_DJUI_THEME_CHANGED",
+    "HOOK_ON_GEO_PROCESS",
+    "HOOK_BEFORE_GEO_PROCESS",
+    "HOOK_ON_GEO_PROCESS_CHILDREN",
+    "HOOK_MARIO_OVERRIDE_GEOMETRY_INPUTS",
+    "HOOK_ON_INTERACTIONS",
     "HOOK_MAX"
 };
 
@@ -125,6 +140,7 @@ static const char* LuaActionHookTypeArgName[] = {
 #define MAX_HOOKED_MOD_MENU_ELEMENTS 256
 
 enum LuaModMenuElementType {
+    MOD_MENU_ELEMENT_TEXT,
     MOD_MENU_ELEMENT_BUTTON,
     MOD_MENU_ELEMENT_CHECKBOX,
     MOD_MENU_ELEMENT_SLIDER,
@@ -170,6 +186,7 @@ bool smlua_call_event_hooks_ret_int(enum LuaHookedEventType hookType, s32* retur
 void smlua_call_event_hooks_set_camera_mode_params(enum LuaHookedEventType hookType, struct Camera *c, s16 mode, s16 frames, bool* returnValue);
 void smlua_call_event_hooks_int_params_ret_bool(enum LuaHookedEventType hookType, s16 param, bool* returnValue);
 void smlua_call_event_hooks_int_params_ret_int(enum LuaHookedEventType hookType, s32 param, s32* returnValue);
+void smlua_call_event_hooks_int_params_ret_string(enum LuaHookedEventType hookType, s32 param, char** returnValue);
 void smlua_call_event_hooks_value_param(enum LuaHookedEventType hookType, int modIndex, int valueIndex);
 void smlua_call_event_hooks_on_play_sound(enum LuaHookedEventType hookType, s32 soundBits, f32* pos, s32* returnValue);
 void smlua_call_event_hooks_use_act_select(enum LuaHookedEventType hookType, int value, bool* foundHook, bool* returnValue);
@@ -182,7 +199,8 @@ bool smlua_call_event_hooks_mario_param_and_int_ret_int(enum LuaHookedEventType 
 bool smlua_call_event_hooks_mario_param_ret_float(enum LuaHookedEventType hookType, struct MarioState* m, f32* returnValue);
 bool smlua_call_event_hooks_mario_param_and_int_and_int_ret_int(enum LuaHookedEventType hookType, struct MarioState* m, s32 param, u32 args, s32* returnValue);
 void smlua_call_event_hooks_graph_node_object_and_int_param(enum LuaHookedEventType hookType, struct GraphNodeObject* node, s32 param);
-void smlua_call_event_hooks_on_seq_load(enum LuaHookedEventType hookType, u32 player, u32 seqId, s32 loadAsync, u8* returnValue);
+void smlua_call_event_hooks_graph_node_and_int_param(enum LuaHookedEventType hookType, struct GraphNode* node, s16 matIndex);
+void smlua_call_event_hooks_on_seq_load(enum LuaHookedEventType hookType, u32 player, u32 seqId, s32 loadAsync, s16* returnValue);
 const char *smlua_call_event_hooks_int_ret_bool_and_string(enum LuaHookedEventType hookType, s32 param, bool* returnValue);
 void smlua_call_event_hooks_string_param(enum LuaHookedEventType hookType, const char* string);
 

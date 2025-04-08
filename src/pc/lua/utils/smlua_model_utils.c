@@ -53,7 +53,7 @@
 #include "levels/ttm/header.h"
 
 #include "smlua_model_utils.h"
-#include "pc/debuglog.h"
+#include "pc/lua/smlua.h"
 
 struct ModelUtilsInfo {
     enum ModelExtendedId extId;
@@ -462,12 +462,21 @@ struct ModelUtilsInfo sModels[E_MODEL_MAX] = {
     MODEL_UTIL_GEO_PERM(E_MODEL_WARIOS_WINGED_METAL_CAP,   warios_winged_metal_cap_geo,   MODEL_WARIOS_WINGED_METAL_CAP),
 };
 
-#define MAX_CUSTOM_MODELS 256
-struct ModelUtilsInfo sCustomModels[MAX_CUSTOM_MODELS] = { 0 };
+#define CUSTOM_MODEL_CHUNK_SIZE 256
 static u16 sCustomModelsCount = 0;
+static u16 sMaxCustomModelsCount = CUSTOM_MODEL_CHUNK_SIZE;
+struct ModelUtilsInfo *sCustomModels = NULL;
+
+void smlua_model_util_initialize(void) {
+    // Allocate the custom models array. We start off with a maximum of 256 custom models.
+    sCustomModels = (struct ModelUtilsInfo *)calloc(sMaxCustomModelsCount, sizeof(struct ModelUtilsInfo));
+}
 
 void smlua_model_util_clear(void) {
     sCustomModelsCount = 0;
+    sMaxCustomModelsCount = CUSTOM_MODEL_CHUNK_SIZE;
+    if (sCustomModels) { free(sCustomModels); }
+    sCustomModels = NULL;
 }
 
 void smlua_model_util_store_in_slot(u32 slot, const char* name) {
@@ -477,8 +486,10 @@ void smlua_model_util_store_in_slot(u32 slot, const char* name) {
     dynos_model_overwrite_slot(slot, loadedId);
 }
 
+// Takes an extended model id, loads the model, and returns the regular model id
 u16 smlua_model_util_load(enum ModelExtendedId extId) {
-    if ((u32)extId >= (u32)E_MODEL_MAX + (u32)sCustomModelsCount) { extId = E_MODEL_ERROR_MODEL; }
+    if (extId == E_MODEL_NONE) { return MODEL_NONE; }
+    if (!extId || (u32)extId >= (u32)E_MODEL_MAX + (u32)sCustomModelsCount) { extId = E_MODEL_ERROR_MODEL; }
 
     struct ModelUtilsInfo* info = (extId < E_MODEL_MAX)
         ? &sModels[extId]
@@ -493,15 +504,70 @@ u16 smlua_model_util_load(enum ModelExtendedId extId) {
     return (u16)id;
 }
 
+// Links the regular model id created by DynOS to our models list
+void smlua_model_util_register_model_id(u32 id, const void *asset) {
+    if (id < VANILLA_ID_END) {
+        for (u32 i = 0; i < E_MODEL_MAX; i++) {
+            struct ModelUtilsInfo* m = &sModels[i];
+            if (m->asset == asset) {
+                m->loadedId = id;
+                return;
+            }
+        }
+    } else {
+        for (u32 i = 0; i < sCustomModelsCount; i++) {
+            struct ModelUtilsInfo* m = &sCustomModels[i];
+            if (m->asset == asset) {
+                m->loadedId = id;
+                return;
+            }
+        }
+    }
+}
+
+// Translates an extended model id to a regular model id
+u16 smlua_model_util_ext_id_to_id(enum ModelExtendedId extId) {
+    if (extId == E_MODEL_NONE) { return MODEL_NONE; }
+    if ((u32)extId >= (u32)E_MODEL_MAX + (u32)sCustomModelsCount) { return MODEL_ERROR_MODEL; }
+
+    struct ModelUtilsInfo* info = (extId < E_MODEL_MAX)
+        ? &sModels[extId]
+        : &sCustomModels[extId - E_MODEL_MAX];
+    return info->loadedId != UNLOADED_ID ? info->loadedId : MODEL_ERROR_MODEL;
+}
+
+// Translates a regular model id to an extended model id
+enum ModelExtendedId smlua_model_util_id_to_ext_id(u16 id) {
+    if (!id) { return E_MODEL_NONE; }
+
+    // Check built-in models
+    for (u32 i = 0; i < E_MODEL_MAX; i++) {
+        struct ModelUtilsInfo* m = &sModels[i];
+        if (m->loadedId == id) {
+            return m->extId;
+        }
+    }
+
+    // Check custom models
+    for (u32 i = 0; i < sCustomModelsCount; i++) {
+        struct ModelUtilsInfo* m = &sCustomModels[i];
+        if (m->loadedId == id) {
+            return m->extId;
+        }
+    }
+
+    return E_MODEL_ERROR_MODEL;
+}
+
 enum ModelExtendedId smlua_model_util_get_id(const char* name) {
-    // find geolayout
+    // Find geolayout
     const void* asset = dynos_geolayout_get(name);
     if (asset == NULL) {
-        LOG_ERROR("Failed to find model: %s - %u", name, E_MODEL_ERROR_MODEL);
+        LOG_LUA_LINE("Could not find model: '%s'", name);
         return E_MODEL_ERROR_MODEL;
     }
 
-    // find existing built-in model
+    // Find existing built-in model
     for (u32 i = 0; i < E_MODEL_MAX; i++) {
         struct ModelUtilsInfo* m = &sModels[i];
         if (m->asset == asset) {
@@ -509,7 +575,7 @@ enum ModelExtendedId smlua_model_util_get_id(const char* name) {
         }
     }
 
-    // find existing custom model
+    // Find existing custom model
     for (u32 i = 0; i < sCustomModelsCount; i++) {
         struct ModelUtilsInfo* m = &sCustomModels[i];
         if (m->asset == asset) {
@@ -517,7 +583,17 @@ enum ModelExtendedId smlua_model_util_get_id(const char* name) {
         }
     }
 
-    // allocate custom model
+    // If we've extended past our current custom model limit. Reallocate so we have more space.
+    if (sCustomModelsCount >= sMaxCustomModelsCount) {
+        if (sMaxCustomModelsCount + CUSTOM_MODEL_CHUNK_SIZE >= 0xFFFF) {
+            LOG_LUA("Failed to get model: '%s' (too many custom models!)", name);
+            return E_MODEL_ERROR_MODEL;
+        }
+        sMaxCustomModelsCount += CUSTOM_MODEL_CHUNK_SIZE;
+        sCustomModels = (struct ModelUtilsInfo *)realloc(sCustomModels, sMaxCustomModelsCount * sizeof(struct ModelUtilsInfo));
+    }
+
+    // Allocate custom model
     u16 customIndex = sCustomModelsCount++;
     struct ModelUtilsInfo* info = &sCustomModels[customIndex];
     info->asset = asset;

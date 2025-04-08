@@ -1,77 +1,5 @@
 math.randomseed(get_time())
 
-
---------------
--- CObjects --
---------------
-
-_CObjectPool = {}
-
-_CObject = {
-    __index = function (t,k)
-        return _get_field(t['_lot'], t['_pointer'], k, t)
-    end,
-    __newindex = function (t,k,v)
-        _set_field(t['_lot'], t['_pointer'], k, v, t)
-    end,
-    __tostring = function(t)
-        return 'CObject: ' .. t['_lot'] .. ', [' .. string.format('0x%08X', t['_pointer']) .. ']'
-    end,
-    __eq = function (a, b)
-        return a['_pointer'] == b['_pointer'] and a['_lot'] == b['_lot'] and a['_pointer'] ~= nil and a['_lot'] ~= nil
-    end
-}
-
-function _NewCObject(lot, pointer)
-    if _CObjectPool[lot] == nil then
-        _CObjectPool[lot] = {}
-    end
-
-    if _CObjectPool[lot][pointer] == nil then
-        local obj = {}
-        rawset(obj, '_pointer', pointer)
-        rawset(obj, '_lot', lot)
-        setmetatable(obj, _CObject)
-        _CObjectPool[lot][pointer] = obj
-        return obj
-    end
-
-    return _CObjectPool[lot][pointer]
-end
-
-local _CPointerPool = {}
-
-_CPointer = {
-    __index = function (t,k)
-        return nil
-    end,
-    __newindex = function (t,k,v)
-    end,
-    __tostring = function(t)
-        return 'CPointer: ' .. t['_lvt'] .. ', [' .. string.format('0x%08X', t['_pointer']) .. ']'
-    end,
-    __eq = function (a, b)
-        return a['_pointer'] == b['_pointer'] and a['_pointer'] ~= nil and a['_lvt'] ~= nil
-    end
-}
-
-function _NewCPointer(lvt, pointer)
-    if _CPointerPool[lvt] == nil then
-        _CPointerPool[lvt] = {}
-    end
-
-    if _CPointerPool[lvt][pointer] == nil then
-        local obj = {}
-        rawset(obj, '_pointer', pointer)
-        rawset(obj, '_lvt', lvt)
-        setmetatable(obj, _CPointer)
-        _CPointerPool[lvt][pointer] = obj
-        return obj
-    end
-
-    return _CPointerPool[lvt][pointer]
-end
-
 _SyncTable = {
     __index = function (t,k)
         local _table = rawget(t, '_table')
@@ -265,54 +193,6 @@ function vec3s_dist(v1, v2)
     return math.sqrt(dx * dx + dy * dy + dz * dz)
 end
 
---- @param current number
---- @param target number
---- @param inc number
---- @param dec number
---- @return number
-function approach_f32(current, target, inc, dec)
-    if current < target then
-        current = current + inc
-        if current > target then
-            current = target
-        end
-    else
-        current = current - dec
-        if current < target then
-            current = target
-        end
-    end
-    return current
-end
-
---- @param current integer
---- @param target integer
---- @param inc integer
---- @param dec integer
---- @return integer
-function approach_s32(current, target, inc, dec)
-    if current < target then
-        current = current + inc
-        if current > target then
-            current = target
-        end
-    else
-        current = current - dec
-        if current < target then
-            current = target
-        end
-    end
-
-    -- keep within 32 bits
-    if current > 2147483647 then
-        current = -2147483648 + (current - 2147483647)
-    elseif current < -2147483648 then
-        current = 2147483647 + (current - (-2147483648))
-    end
-    return current
-end
-
-
 -----------
 -- sound --
 -----------
@@ -403,6 +283,7 @@ COURSE_MIN = 1
 --- @param np NetworkPlayer
 --- @param part PlayerPart
 --- @return Color
+--- Gets the palette color of `part` on `np`
 function network_player_get_palette_color(np, part)
     local color = {
         r = network_player_get_palette_color_channel(np, part, 0),
@@ -415,6 +296,7 @@ end
 --- @param np NetworkPlayer
 --- @param part PlayerPart
 --- @return Color
+--- Gets the override palette color of `part` on `np`
 function network_player_get_override_palette_color(np, part)
     local color = {
         r = network_player_get_override_palette_color_channel(np, part, 0),

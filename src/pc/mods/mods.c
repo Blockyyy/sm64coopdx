@@ -6,6 +6,8 @@
 #include "pc/debuglog.h"
 #include "pc/loading.h"
 #include "pc/fs/fmem.h"
+#include "pc/pc_main.h"
+#include "pc/utils/misc.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -59,8 +61,9 @@ u16 mods_get_character_select_count(void) {
 
     for (u16 i = 0; i < gLocalMods.entryCount; i++) {
         struct Mod* mod = gLocalMods.entries[i];
-        if (!mod->enabled || strcmp(mod->name, "[CS]")) { continue; }
-        enabled++;
+        if (mod->enabled && mod->category && strcmp(mod->category, "cs") == 0) {
+            enabled++;
+        }
     }
 
     return enabled;
@@ -94,6 +97,7 @@ static void mods_local_store_enabled(void) {
         } else {
             prev->next = n;
         }
+        prev = n;
     }
 }
 
@@ -174,21 +178,6 @@ void mods_activate(struct Mods* mods) {
     mod_cache_save();
 }
 
-static char* mods_remove_color_codes(const char* str) {
-    char* result = strdup(str);
-    char* startColor;
-    while ((startColor = strstr(result, "\\#"))) {
-        char* endColor = strstr(startColor + 2, "\\");
-        if (endColor) {
-            memmove(startColor, endColor + 1, strlen(endColor + 1) + 1);
-        } else {
-            *startColor = '\0';
-            break;
-        }
-    }
-    return result;
-}
-
 static void mods_sort(struct Mods* mods) {
     if (mods->entryCount <= 1) {
         return;
@@ -199,8 +188,8 @@ static void mods_sort(struct Mods* mods) {
         struct Mod* mod = mods->entries[i];
         for (s32 j = 0; j < i; ++j) {
             struct Mod* mod2 = mods->entries[j];
-            char* name = mods_remove_color_codes(mod->name);
-            char* name2 = mods_remove_color_codes(mod2->name);
+            char* name = str_remove_color_codes(mod->name);
+            char* name2 = str_remove_color_codes(mod2->name);
             if (strcmp(name, name2) < 0) {
                 mods->entries[i] = mod2;
                 mods->entries[j] = mod;
@@ -252,7 +241,10 @@ static void mods_load(struct Mods* mods, char* modsBasePath, UNUSED bool isUserM
     }
     UNUSED f32 count = (f32) mods_count_directory(modsBasePath);
 
-    LOADING_SCREEN_MUTEX(snprintf(gCurrLoadingSegment.str, 256, "Loading Mods In %s Mod Path:\n\\#808080\\%s", isUserModPath ? "User" : "Local", modsBasePath));
+    LOADING_SCREEN_MUTEX(
+        loading_screen_reset_progress_bar();
+        snprintf(gCurrLoadingSegment.str, 256, "Loading Mods In %s Mod Path:\n\\#808080\\%s", isUserModPath ? "User" : "Local", modsBasePath);
+    );
 
     // iterate
     char path[SYS_MAX_PATH] = { 0 };
@@ -276,7 +268,8 @@ static void mods_load(struct Mods* mods, char* modsBasePath, UNUSED bool isUserM
 }
 
 void mods_refresh_local(void) {
-    mods_local_store_enabled();
+    LOADING_SCREEN_MUTEX(loading_screen_set_segment_text("Refreshing Mod Cache"));
+    if (gGameInited) { mods_local_store_enabled(); }
 
     // figure out user path
     bool hasUserPath = true;
@@ -295,7 +288,7 @@ void mods_refresh_local(void) {
     if (hasUserPath) { mods_load(&gLocalMods, userModPath, true); }
 
     char defaultModsPath[SYS_MAX_PATH] = { 0 };
-    snprintf(defaultModsPath, SYS_MAX_PATH, "%s/%s", sys_exe_path(), MOD_DIRECTORY);
+    snprintf(defaultModsPath, SYS_MAX_PATH, "%s/%s", sys_resource_path(), MOD_DIRECTORY);
     mods_load(&gLocalMods, defaultModsPath, false);
 
     // sort
@@ -308,7 +301,7 @@ void mods_refresh_local(void) {
         gLocalMods.size += mod->size;
     }
 
-    mods_local_restore_enabled();
+    if (gGameInited) { mods_local_restore_enabled(); }
 }
 
 void mods_enable(char* relativePath) {
@@ -324,7 +317,6 @@ void mods_enable(char* relativePath) {
 }
 
 void mods_init(void) {
-    LOADING_SCREEN_MUTEX(loading_screen_set_segment_text("Caching Mods"));
 
     // load mod cache
     mod_cache_load();

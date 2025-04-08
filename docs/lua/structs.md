@@ -23,14 +23,43 @@
 - [CutsceneSplinePoint](#CutsceneSplinePoint)
 - [CutsceneVariable](#CutsceneVariable)
 - [DateTime](#DateTime)
+- [DisplayListNode](#DisplayListNode)
 - [DjuiColor](#DjuiColor)
+- [DjuiInteractableTheme](#DjuiInteractableTheme)
+- [DjuiPanelTheme](#DjuiPanelTheme)
+- [DjuiTheme](#DjuiTheme)
+- [DjuiThreePanelTheme](#DjuiThreePanelTheme)
+- [ExclamationBoxContent](#ExclamationBoxContent)
 - [FirstPersonCamera](#FirstPersonCamera)
 - [FloorGeometry](#FloorGeometry)
+- [FnGraphNode](#FnGraphNode)
+- [Gfx](#Gfx)
 - [GlobalObjectAnimations](#GlobalObjectAnimations)
 - [GlobalObjectCollisionData](#GlobalObjectCollisionData)
 - [GlobalTextures](#GlobalTextures)
 - [GraphNode](#GraphNode)
+- [GraphNodeAnimatedPart](#GraphNodeAnimatedPart)
+- [GraphNodeBackground](#GraphNodeBackground)
+- [GraphNodeBillboard](#GraphNodeBillboard)
+- [GraphNodeCamera](#GraphNodeCamera)
+- [GraphNodeCullingRadius](#GraphNodeCullingRadius)
+- [GraphNodeDisplayList](#GraphNodeDisplayList)
+- [GraphNodeGenerated](#GraphNodeGenerated)
+- [GraphNodeHeldObject](#GraphNodeHeldObject)
+- [GraphNodeLevelOfDetail](#GraphNodeLevelOfDetail)
+- [GraphNodeMasterList](#GraphNodeMasterList)
 - [GraphNodeObject](#GraphNodeObject)
+- [GraphNodeObjectParent](#GraphNodeObjectParent)
+- [GraphNodeOrthoProjection](#GraphNodeOrthoProjection)
+- [GraphNodePerspective](#GraphNodePerspective)
+- [GraphNodeRoot](#GraphNodeRoot)
+- [GraphNodeRotation](#GraphNodeRotation)
+- [GraphNodeScale](#GraphNodeScale)
+- [GraphNodeShadow](#GraphNodeShadow)
+- [GraphNodeStart](#GraphNodeStart)
+- [GraphNodeSwitchCase](#GraphNodeSwitchCase)
+- [GraphNodeTranslation](#GraphNodeTranslation)
+- [GraphNodeTranslationRotation](#GraphNodeTranslationRotation)
 - [GraphNode_802A45E4](#GraphNode_802A45E4)
 - [HandheldShakePoint](#HandheldShakePoint)
 - [HudUtilsRotation](#HudUtilsRotation)
@@ -42,6 +71,7 @@
 - [MarioAnimation](#MarioAnimation)
 - [MarioBodyState](#MarioBodyState)
 - [MarioState](#MarioState)
+- [Mat4](#Mat4)
 - [Mod](#Mod)
 - [ModAudio](#ModAudio)
 - [ModAudioSampleCopies](#ModAudioSampleCopies)
@@ -62,6 +92,7 @@
 - [PlayerGeometry](#PlayerGeometry)
 - [PlayerPalette](#PlayerPalette)
 - [RayIntersectionInfo](#RayIntersectionInfo)
+- [RomhackCameraSettings](#RomhackCameraSettings)
 - [SPTask](#SPTask)
 - [ServerSettings](#ServerSettings)
 - [SoundState](#SoundState)
@@ -75,8 +106,13 @@
 - [TransitionInfo](#TransitionInfo)
 - [UnusedArea28](#UnusedArea28)
 - [VblankHandler](#VblankHandler)
+- [Vec2f](#Vec2f)
 - [Vec3f](#Vec3f)
 - [Vec3s](#Vec3s)
+- [Vec4f](#Vec4f)
+- [Vec4s](#Vec4s)
+- [Vtx](#Vtx)
+- [Vtx_Interp](#Vtx_Interp)
 - [WallCollisionData](#WallCollisionData)
 - [WarpNode](#WarpNode)
 - [WarpTransition](#WarpTransition)
@@ -143,6 +179,7 @@
 | Field | Type | Access |
 | ----- | ---- | ------ |
 | camera | [Camera](structs.md#Camera) |  |
+| dialog | `Array` <`integer`> |  |
 | flags | `integer` |  |
 | index | `integer` |  |
 | instantWarps | [InstantWarp](structs.md#InstantWarp) |  |
@@ -160,6 +197,7 @@
 | terrainData | `Pointer` <`integer`> | read-only |
 | terrainType | `integer` |  |
 | warpNodes | [ObjectWarpNode](structs.md#ObjectWarpNode) | read-only |
+| whirlpools | `Array` <`Whirlpool`> |  |
 
 [:arrow_up_small:](#)
 
@@ -363,6 +401,8 @@
 | cutscene | `integer` |  |
 | defMode | `integer` |  |
 | doorStatus | `integer` |  |
+| filler31 | `Array` <`integer`> |  |
+| filler3C | `Array` <`integer`> |  |
 | focus | [Vec3f](structs.md#Vec3f) | read-only |
 | mode | `integer` |  |
 | mtx | `Mat4` | read-only |
@@ -398,6 +438,7 @@
 | Field | Type | Access |
 | ----- | ---- | ------ |
 | override | `boolean` |  |
+| value | `integer` |  |
 
 [:arrow_up_small:](#)
 
@@ -666,6 +707,8 @@
 | animWaterThrowObj | `integer` | read-only |
 | animWingCapFly | `integer` | read-only |
 | cameraHudHead | `integer` | read-only |
+| capEnemyDecalGfx | `Pointer` <`Gfx`> | read-only |
+| capEnemyGfx | `Pointer` <`Gfx`> | read-only |
 | capEnemyLayer | `integer` | read-only |
 | capMetalModelId | `integer` | read-only |
 | capMetalWingModelId | `integer` | read-only |
@@ -731,9 +774,9 @@
 
 | Field | Type | Access |
 | ----- | ---- | ------ |
-| b | `integer` |  |
-| g | `integer` |  |
 | r | `integer` |  |
+| g | `integer` |  |
+| b | `integer` |  |
 
 [:arrow_up_small:](#)
 
@@ -745,6 +788,7 @@
 | ----- | ---- | ------ |
 | buttonDown | `integer` |  |
 | buttonPressed | `integer` |  |
+| buttonReleased | `integer` |  |
 | extStickX | `integer` |  |
 | extStickY | `integer` |  |
 | port | `integer` |  |
@@ -830,6 +874,18 @@
 
 <br />
 
+## [DisplayListNode](#DisplayListNode)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| next | [DisplayListNode](structs.md#DisplayListNode) |  |
+| usingCamSpace | `integer` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
 ## [DjuiColor](#DjuiColor)
 
 | Field | Type | Access |
@@ -838,6 +894,71 @@
 | b | `integer` |  |
 | g | `integer` |  |
 | r | `integer` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [DjuiInteractableTheme](#DjuiInteractableTheme)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| cursorDownBorderColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+| cursorDownRectColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+| defaultBorderColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+| defaultRectColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+| hoveredBorderColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+| hoveredRectColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+| textColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [DjuiPanelTheme](#DjuiPanelTheme)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| hudFontHeader | `boolean` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [DjuiTheme](#DjuiTheme)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| id | `string` | read-only |
+| interactables | [DjuiInteractableTheme](structs.md#DjuiInteractableTheme) | read-only |
+| name | `string` | read-only |
+| panels | [DjuiPanelTheme](structs.md#DjuiPanelTheme) | read-only |
+| threePanels | [DjuiThreePanelTheme](structs.md#DjuiThreePanelTheme) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [DjuiThreePanelTheme](#DjuiThreePanelTheme)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| borderColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+| rectColor | [DjuiColor](structs.md#DjuiColor) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [ExclamationBoxContent](#ExclamationBoxContent)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| behavior | [enum BehaviorId](constants.md#enum-BehaviorId) |  |
+| firstByte | `integer` |  |
+| id | `integer` |  |
+| model | [enum ModelExtendedId](constants.md#enum-ModelExtendedId) |  |
+| unused | `integer` |  |
 
 [:arrow_up_small:](#)
 
@@ -870,6 +991,28 @@
 | normalY | `number` |  |
 | normalZ | `number` |  |
 | originOffset | `number` |  |
+| unused | `Array` <`number`> |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [FnGraphNode](#FnGraphNode)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [Gfx](#Gfx)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| w0 | `integer` | read-only |
+| w1 | `integer` | read-only |
 
 [:arrow_up_small:](#)
 
@@ -1080,10 +1223,140 @@
 | children | [GraphNode](structs.md#GraphNode) | read-only |
 | extraFlags | `integer` |  |
 | flags | `integer` |  |
+| hookProcess | `integer` |  |
 | next | [GraphNode](structs.md#GraphNode) | read-only |
 | parent | [GraphNode](structs.md#GraphNode) | read-only |
 | prev | [GraphNode](structs.md#GraphNode) | read-only |
 | type | `integer` | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeAnimatedPart](#GraphNodeAnimatedPart)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| translation | [Vec3s](structs.md#Vec3s) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeBackground](#GraphNodeBackground)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| background | `integer` |  |
+| fnNode | [FnGraphNode](structs.md#FnGraphNode) | read-only |
+| prevCameraFocus | [Vec3f](structs.md#Vec3f) | read-only |
+| prevCameraPos | [Vec3f](structs.md#Vec3f) | read-only |
+| prevCameraTimestamp | `integer` | read-only |
+| unused | `integer` | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeBillboard](#GraphNodeBillboard)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| translation | [Vec3s](structs.md#Vec3s) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeCamera](#GraphNodeCamera)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| fnNode | [FnGraphNode](structs.md#FnGraphNode) | read-only |
+| focus | [Vec3f](structs.md#Vec3f) | read-only |
+| matrixPtr | `Pointer` <`Mat4`> |  |
+| matrixPtrPrev | `Pointer` <`Mat4`> | read-only |
+| pos | [Vec3f](structs.md#Vec3f) | read-only |
+| prevFocus | [Vec3f](structs.md#Vec3f) | read-only |
+| prevPos | [Vec3f](structs.md#Vec3f) | read-only |
+| prevTimestamp | `integer` | read-only |
+| roll | `integer` |  |
+| rollScreen | `integer` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeCullingRadius](#GraphNodeCullingRadius)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| cullingRadius | `integer` |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| pad1E | `Array` <`integer`> |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeDisplayList](#GraphNodeDisplayList)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeGenerated](#GraphNodeGenerated)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| fnNode | [FnGraphNode](structs.md#FnGraphNode) | read-only |
+| parameter | `integer` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeHeldObject](#GraphNodeHeldObject)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| fnNode | [FnGraphNode](structs.md#FnGraphNode) | read-only |
+| objNode | [Object](structs.md#Object) |  |
+| playerIndex | `integer` |  |
+| prevShadowPos | [Vec3f](structs.md#Vec3f) | read-only |
+| prevShadowPosTimestamp | `integer` | read-only |
+| translation | [Vec3s](structs.md#Vec3s) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeLevelOfDetail](#GraphNodeLevelOfDetail)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| maxDistance | `integer` |  |
+| minDistance | `integer` |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeMasterList](#GraphNodeMasterList)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
 
 [:arrow_up_small:](#)
 
@@ -1125,6 +1398,133 @@
 
 <br />
 
+## [GraphNodeObjectParent](#GraphNodeObjectParent)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| sharedChild | [GraphNode](structs.md#GraphNode) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeOrthoProjection](#GraphNodeOrthoProjection)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| scale | `number` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodePerspective](#GraphNodePerspective)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| far | `integer` |  |
+| fnNode | [FnGraphNode](structs.md#FnGraphNode) | read-only |
+| fov | `number` |  |
+| near | `integer` |  |
+| prevFov | `number` |  |
+| prevTimestamp | `number` |  |
+| unused | `integer` | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeRotation](#GraphNodeRotation)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| prevRotation | [Vec3s](structs.md#Vec3s) | read-only |
+| prevTimestamp | `integer` |  |
+| rotation | [Vec3s](structs.md#Vec3s) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeScale](#GraphNodeScale)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| prevScale | `number` |  |
+| scale | `number` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeShadow](#GraphNodeShadow)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| shadowScale | `integer` |  |
+| shadowSolidity | `integer` |  |
+| shadowType | `integer` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeStart](#GraphNodeStart)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeSwitchCase](#GraphNodeSwitchCase)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| fnNode | [FnGraphNode](structs.md#FnGraphNode) | read-only |
+| numCases | `integer` | read-only |
+| selectedCase | `integer` |  |
+| unused | `integer` | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeTranslation](#GraphNodeTranslation)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| pad1E | `Array` <`integer`> |  |
+| translation | [Vec3s](structs.md#Vec3s) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [GraphNodeTranslationRotation](#GraphNodeTranslationRotation)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| displayList | `Pointer` <`Gfx`> |  |
+| node | [GraphNode](structs.md#GraphNode) | read-only |
+| rotation | [Vec3s](structs.md#Vec3s) | read-only |
+| translation | [Vec3s](structs.md#Vec3s) | read-only |
+
+[:arrow_up_small:](#)
+
+<br />
+
 ## [GraphNode_802A45E4](#GraphNode_802A45E4)
 
 | Field | Type | Access |
@@ -1158,7 +1558,10 @@
 | ----- | ---- | ------ |
 | pivotX | `number` |  |
 | pivotY | `number` |  |
+| prevPivotX | `number` |  |
+| prevPivotY | `number` |  |
 | rotation | `number` |  |
+| rotationDiff | `number` |  |
 
 [:arrow_up_small:](#)
 
@@ -1183,6 +1586,9 @@
 | curFocus | [Vec3f](structs.md#Vec3f) | read-only |
 | curPos | [Vec3f](structs.md#Vec3f) | read-only |
 | defMode | `integer` |  |
+| filler30 | `Array` <`integer`> |  |
+| filler3E | `Array` <`integer`> |  |
+| filler72 | `Array` <`integer`> |  |
 | focHSpeed | `number` |  |
 | focVSpeed | `number` |  |
 | focus | [Vec3f](structs.md#Vec3f) | read-only |
@@ -1299,6 +1705,7 @@
 | Field | Type | Access |
 | ----- | ---- | ------ |
 | currentAnimAddr | `Pointer` <`integer`> | read-only |
+| padding | `Array` <`integer`> |  |
 | targetAnim | [Animation](structs.md#Animation) |  |
 
 [:arrow_up_small:](#)
@@ -1314,6 +1721,7 @@
 | capState | `integer` |  |
 | eyeState | `integer` |  |
 | grabPos | `integer` |  |
+| handFootPos | `Array` <`Vec3f`> | read-only |
 | handState | `integer` |  |
 | headAngle | [Vec3s](structs.md#Vec3s) | read-only |
 | headPos | [Vec3f](structs.md#Vec3f) | read-only |
@@ -1324,6 +1732,7 @@
 | lightingDirX | `number` |  |
 | lightingDirY | `number` |  |
 | lightingDirZ | `number` |  |
+| mirrorMario | `boolean` |  |
 | modelState | `integer` |  |
 | punchState | `integer` |  |
 | shadeB | `integer` |  |
@@ -1331,6 +1740,7 @@
 | shadeR | `integer` |  |
 | torsoAngle | [Vec3s](structs.md#Vec3s) | read-only |
 | torsoPos | [Vec3f](structs.md#Vec3f) | read-only |
+| updateHeadPosTime | `integer` |  |
 | updateTorsoTime | `integer` | read-only |
 | wingFlutter | `integer` |  |
 
@@ -1427,14 +1837,41 @@
 
 <br />
 
+## [Mat4](#Mat4)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| m00 | `number` |  |
+| m01 | `number` |  |
+| m02 | `number` |  |
+| m03 | `number` |  |
+| m10 | `number` |  |
+| m11 | `number` |  |
+| m12 | `number` |  |
+| m13 | `number` |  |
+| m20 | `number` |  |
+| m21 | `number` |  |
+| m22 | `number` |  |
+| m23 | `number` |  |
+| m30 | `number` |  |
+| m31 | `number` |  |
+| m32 | `number` |  |
+| m33 | `number` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
 ## [Mod](#Mod)
 
 | Field | Type | Access |
 | ----- | ---- | ------ |
 | basePath | `string` | read-only |
+| category | `string` | read-only |
 | customBehaviorIndex | `integer` | read-only |
 | description | `string` | read-only |
 | enabled | `boolean` | read-only |
+| fileCapacity | `integer` | read-only |
 | fileCount | `integer` | read-only |
 | ignoreScriptWarnings | `boolean` | read-only |
 | incompatible | `string` | read-only |
@@ -1480,6 +1917,7 @@
 | Field | Type | Access |
 | ----- | ---- | ------ |
 | cachedPath | `string` | read-only |
+| dataHash | `Array` <`integer`> | read-only |
 | relativePath | `string` | read-only |
 | wroteBytes | `integer` | read-only |
 
@@ -1540,6 +1978,7 @@
 | modelIndex | `integer` | read-only |
 | name | `string` | read-only |
 | onRxSeqId | `integer` | read-only |
+| overrideLocation | `string` | read-only |
 | overrideModelIndex | `integer` |  |
 | overridePalette | [PlayerPalette](structs.md#PlayerPalette) |  |
 | palette | [PlayerPalette](structs.md#PlayerPalette) | read-only |
@@ -1563,6 +2002,7 @@
 | bhvDelayTimer | `integer` |  |
 | bhvStackIndex | `integer` | read-only |
 | collidedObjInteractTypes | `integer` |  |
+| collidedObjs | `Array` <`Object`> |  |
 | collisionData | `Pointer` <`Collision`> |  |
 | coopFlags | `integer` | read-only |
 | ctx | `integer` |  |
@@ -2321,6 +2761,8 @@
 | oYoshiChosenHome | `integer` |  |
 | oYoshiTargetYaw | `integer` |  |
 | oBreakableWallForce | `integer` |  |
+| oLightID | `integer` |  |
+| oLightRadius | `number` |  |
 
 [:arrow_up_small:](#)
 
@@ -2399,6 +2841,7 @@
 | marioIsUnder | `integer` |  |
 | marioWasUnder | `integer` |  |
 | marioWentUnder | `integer` |  |
+| normalDisplayList | `Pointer` <`Gfx`> | read-only |
 | passiveDispersionFactor | `number` |  |
 | passiveRippleDecay | `number` |  |
 | passiveRippleMag | `number` |  |
@@ -2408,6 +2851,7 @@
 | posY | `number` |  |
 | posZ | `number` |  |
 | rippleDecay | `number` |  |
+| rippleDisplayList | `Pointer` <`Gfx`> | read-only |
 | rippleTimer | `number` |  |
 | rippleTrigger | `integer` |  |
 | rippleX | `number` |  |
@@ -2427,6 +2871,8 @@
 
 | Field | Type | Access |
 | ----- | ---- | ------ |
+| norm | `Array` <`integer`> |  |
+| pos | `Array` <`integer`> |  |
 
 [:arrow_up_small:](#)
 
@@ -2528,6 +2974,25 @@
 
 <br />
 
+## [RomhackCameraSettings](#RomhackCameraSettings)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| centering | `integer` |  |
+| collisions | `integer` |  |
+| dpad | `integer` |  |
+| enable | [enum RomhackCameraOverride](constants.md#enum-RomhackCameraOverride) |  |
+| modsOnly | `integer` |  |
+| slowFall | `integer` |  |
+| zoomedInDist | `integer` |  |
+| zoomedInHeight | `integer` |  |
+| zoomedOutDist | `integer` |  |
+| zoomedOutHeight | `integer` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
 ## [ServerSettings](#ServerSettings)
 
 | Field | Type | Access |
@@ -2542,6 +3007,7 @@
 | pauseAnywhere | `integer` |  |
 | playerInteractions | [enum PlayerInteractions](constants.md#enum-PlayerInteractions) |  |
 | playerKnockbackStrength | `integer` |  |
+| pvpType | [enum PvpType](constants.md#enum-PvpType) |  |
 | skipIntro | `integer` |  |
 | stayInLevelAfterStar | `integer` |  |
 
@@ -2718,6 +3184,17 @@
 
 <br />
 
+## [Vec2f](#Vec2f)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| x | `number` |  |
+| y | `number` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
 ## [Vec3f](#Vec3f)
 
 | Field | Type | Access |
@@ -2742,6 +3219,56 @@
 
 <br />
 
+## [Vec4f](#Vec4f)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| x | `number` |  |
+| y | `number` |  |
+| z | `number` |  |
+| w | `number` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [Vec4s](#Vec4s)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| x | `integer` |  |
+| y | `integer` |  |
+| z | `integer` |  |
+| w | `integer` |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [Vtx](#Vtx)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| cn | `Array` <`integer`> |  |
+| flag | `integer` |  |
+| ob | `Array` <`number`> |  |
+| tc | `Array` <`integer`> |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
+## [Vtx_Interp](#Vtx_Interp)
+
+| Field | Type | Access |
+| ----- | ---- | ------ |
+| n | `string` |  |
+| ob | `Array` <`number`> |  |
+
+[:arrow_up_small:](#)
+
+<br />
+
 ## [WallCollisionData](#WallCollisionData)
 
 | Field | Type | Access |
@@ -2752,6 +3279,7 @@
 | offsetY | `number` |  |
 | radius | `number` |  |
 | unused | `integer` |  |
+| walls | `Array` <`Surface`> |  |
 | x | `number` |  |
 | y | `number` |  |
 | z | `number` |  |

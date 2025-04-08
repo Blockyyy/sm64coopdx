@@ -1,7 +1,5 @@
-if SM64COOPDX_VERSION == nil then return end
-
 -- localize functions to improve performance
-local string_format,table_insert,math_floor,math_ceil,level_is_vanilla_level,djui_hud_get_color,djui_hud_set_color,djui_hud_print_text,type,obj_get_first_with_behavior_id = string.format,table.insert,math.floor,math.ceil,level_is_vanilla_level,djui_hud_get_color,djui_hud_set_color,djui_hud_print_text,type,obj_get_first_with_behavior_id
+local string_format,table_insert,math_floor,math_ceil,level_is_vanilla_level,djui_hud_get_color,djui_hud_set_color,djui_hud_print_text,obj_get_first_with_behavior_id = string.format,table.insert,math.floor,math.ceil,level_is_vanilla_level,djui_hud_get_color,djui_hud_set_color,djui_hud_print_text,obj_get_first_with_behavior_id
 
 --- @param cond boolean
 --- Human readable ternary operator
@@ -38,17 +36,17 @@ end
 --- @param a number
 --- @param b number
 --- @param t number
---- Linearly interpolates between two points using a delta but rounds the final value
-function lerp_round(a, b, t)
-    return math_round(lerp(a, b, t))
+--- Linearly interpolates between two points using a delta but ceils the final value
+function lerp_ceil(a, b, t)
+    return math_ceil(lerp(a, b, t))
 end
 
 --- @param a number
 --- @param b number
 --- @param t number
---- Linearly interpolates between two points using a delta but ceils the final value
-function lerp_ceil(a, b, t)
-    return math_ceil(lerp(a, b, t))
+--- Linearly interpolates between two points using a delta but rounds the final value
+function lerp_round(a, b, t)
+    return math_round(lerp(a, b, t))
 end
 
 --- @param a Color
@@ -118,5 +116,29 @@ function check_common_hud_render_cancels()
     local action = gMarioStates[0].action
     return obj_get_first_with_behavior_id(id_bhvActSelector) ~= nil or
            gNetworkPlayers[0].currActNum == 99 or
+           gNetworkPlayers[0].currLevelNum == LEVEL_BOWSER_3 or
+           gNetworkPlayers[0].currLevelNum == LEVEL_ENDING or
            action == ACT_END_PEACH_CUTSCENE or action == ACT_END_WAVING_CUTSCENE or action == ACT_CREDITS_CUTSCENE
+end
+
+local function tobool(value)
+    local type = type(value)
+    if type == "boolean" then
+        return value
+    elseif type == "number" then
+        return value == 1
+    elseif type == "string" then
+        return value == "true"
+    elseif type == "table" or type == "function" or type == "thread" or type == "userdata" then
+        return true
+    end
+    return false
+end
+
+--- @param key string
+--- `mod_storage_load_bool` except it returns true by default
+function mod_storage_load_bool_2(key)
+    local value = mod_storage_load(key)
+    if value == nil then return true end
+    return tobool(value)
 end

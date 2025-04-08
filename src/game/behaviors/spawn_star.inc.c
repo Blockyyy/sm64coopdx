@@ -16,7 +16,7 @@ void bhv_star_number_loop(void) {
         obj_set_angle(o, 0, 0, 0);
         obj_scale(o, 1.f);
         o->oAnimState = o->oBehParams2ndByte = ((star->oBehParams >> 24) & 0xFF) + 1;
-        o->header.gfx.node.flags = star->header.gfx.node.flags;
+        o->header.gfx.node.flags = star->header.gfx.node.flags | GRAPH_RENDER_BILLBOARD;
     } else {
         cur_obj_disable_rendering();
         cur_obj_hide();
@@ -169,7 +169,13 @@ void bhv_star_spawn_loop(void) {
                 o->oInteractStatus = 0;
             }
 
-            network_send_object(o);
+            struct SyncObject* so = sync_object_get(o->oSyncID);
+            if (so) {
+                so->owned = sync_object_should_own(so->id);
+                if (so->owned) { network_send_object(o); }
+            } else {
+                network_send_object(o);
+            }
             break;
     }
     spawn_star_number();

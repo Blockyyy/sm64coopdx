@@ -8,9 +8,11 @@
 #include "game/camera.h"
 #include "pc/lua/utils/smlua_math_utils.h"
 #include "pc/lua/utils/smlua_misc_utils.h"
+#include "pc/lua/smlua_hooks.h"
 
-#define NAMETAG_MAX_SCALE 0.32f
-#define NAMETAG_DIST 7000.0f
+#define CLAMP(_val, _min, _max) MAX(MIN((_val), _max), _min)
+
+#define FADE_SCALE 4.f
 
 struct StateExtras {
     Vec3f prevPos;
@@ -58,7 +60,7 @@ void nametags_render(void) {
     }
 
     djui_hud_set_resolution(RESOLUTION_N64);
-    djui_hud_set_font(FONT_NORMAL);
+    djui_hud_set_font(FONT_SPECIAL);
 
     for (u8 i = gNametagsSettings.showSelfTag ? 0 : 1; i < MAX_PLAYERS; i++) {
         struct MarioState* m = &gMarioStates[i];
@@ -78,31 +80,32 @@ void nametags_render(void) {
             continue;
         }
 
+        if (m->marioBodyState->mirrorMario || m->marioBodyState->updateHeadPosTime != gGlobalTimer) { continue; }
+
         Vec3f pos;
         Vec3f out;
-        vec3f_copy(pos, m->marioObj->header.gfx.pos);
-        pos[1] = m->pos[1] + 210;
+        vec3f_copy(pos, m->marioBodyState->headPos);
+        pos[1] += 100;
 
         if (djui_hud_world_pos_to_screen_pos(pos, out) &&
             (i != 0 || (i == 0 && m->action != ACT_FIRST_PERSON))) {
-            f32 scale = NAMETAG_MAX_SCALE;
-            f32 dist = vec3f_dist(gLakituState.pos, m->pos);
-            if (i != 0 && dist > 1000) {
-                scale = 0.5f + dist / NAMETAG_DIST;
-                scale = clampf(1 - scale, 0, NAMETAG_MAX_SCALE);
-            }
+            f32 scale = -300 / out[2] * djui_hud_get_fov_coeff();
 
             char name[MAX_CONFIG_STRING];
-            snprintf(name, MAX_CONFIG_STRING, "%s", np->name);
-            name_without_hex(name);
-            Color color = {
-                np->overridePalette.parts[CAP][0],
-                np->overridePalette.parts[CAP][1],
-                np->overridePalette.parts[CAP][2]
-            };
-            f32 measure = djui_hud_measure_text(name) * scale * 0.5f;
+            char* hookedString = NULL;
+            smlua_call_event_hooks_int_params_ret_string(HOOK_ON_NAMETAGS_RENDER, i, &hookedString);
+            if (hookedString) {
+                snprintf(name, MAX_CONFIG_STRING, "%s", hookedString);
+            } else {
+                snprintf(name, MAX_CONFIG_STRING, "%s", np->name);
+                name_without_hex(name);
+            }
+            u8* color = network_get_player_text_color(m->playerIndex);
 
-            u8 alpha = i == 0 ? 255 : MIN(np->fadeOpacity << 3, 255);
+            f32 measure = djui_hud_measure_text(name) * scale * 0.5f;
+            out[1] -= 16 * scale;
+
+            u8 alpha = (i == 0 ? 255 : MIN(np->fadeOpacity << 3, 255)) * CLAMP(FADE_SCALE - scale, 0.f, 1.f);
 
             struct StateExtras* e = &sStateExtras[i];
             if (!e->inited) {
@@ -110,17 +113,30 @@ void nametags_render(void) {
                 e->prevScale = scale;
                 e->inited = true;
             }
-            djui_hud_print_outlined_text_interpolated(name, e->prevPos[0] - measure, e->prevPos[1], e->prevScale, out[0] - measure, out[1], scale, color[0], color[1], color[2], alpha, 0.25);
+
+            // Scissor to clip during credits
+            extern Vp *D_8032CE74;
+            extern Vp *D_8032CE78;
+            Vp *viewport = D_8032CE74 == NULL ? D_8032CE78 : D_8032CE74;
+            if (viewport) { make_viewport_clip_rect(viewport); }
+
+            djui_hud_print_outlined_text_interpolated(name,
+                e->prevPos[0] - measure, e->prevPos[1], e->prevScale,
+                       out[0] - measure,        out[1],        scale,
+                color[0], color[1], color[2], alpha, 0.25);
 
             if (i != 0 && gNametagsSettings.showHealth) {
                 djui_hud_set_color(255, 255, 255, alpha);
                 f32 healthScale = 90 * scale;
                 f32 prevHealthScale = 90 * e->prevScale;
                 hud_render_power_meter_interpolated(m->health,
-                    e->prevPos[0] - (prevHealthScale * 0.5f), e->prevPos[1] - 23, prevHealthScale, prevHealthScale,
-                    out[0] - (healthScale * 0.5f), out[1] - 23, healthScale, healthScale
+                    e->prevPos[0] - (prevHealthScale * 0.5f), e->prevPos[1] - 72 * scale, prevHealthScale, prevHealthScale,
+                           out[0] - (    healthScale * 0.5f),        out[1] - 72 * scale,     healthScale,     healthScale
                 );
             }
+
+            // Reset scissor
+            if (viewport) { gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, BORDER_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - BORDER_HEIGHT); }
 
             vec3f_copy(e->prevPos, out);
             e->prevScale = scale;

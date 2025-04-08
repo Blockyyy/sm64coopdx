@@ -110,7 +110,7 @@ void discord_activity_update(void) {
         sCurActivity.party.size.max_size = 1;
     }
 
-    if ((sCurActivity.party.size.current_size > 1 || configAmountofPlayers == 1) && !gDjuiInMainMenu) {
+    if ((sCurActivity.party.size.current_size > 1 || configAmountOfPlayers == 1) && !gDjuiInMainMenu) {
         strcpy(sCurActivity.state, "Playing!");
     } else if (gNetworkType == NT_SERVER) {
         strcpy(sCurActivity.state, "Waiting for players...");
@@ -123,8 +123,10 @@ void discord_activity_update(void) {
     // HACK: give the detail population more space than the Discord details can fit so it gets truncated without cutting off the largest strings
     char details[512] = { 0 };
     discord_populate_details(details, 512);
+    char* detailsNoColor = str_remove_color_codes(details);
 
-    snprintf(sCurActivity.details, 128, "%s", details);
+    snprintf(sCurActivity.details, 128, "%s", detailsNoColor);
+    free(detailsNoColor);
 
     if (!app.activities) {
         LOG_INFO("no activities");

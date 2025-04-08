@@ -54,6 +54,7 @@ extern "C" {
 #include "levels/bits/header.h"
 #include "levels/bob/header.h"
 #include "levels/bowser_1/header.h"
+#include "levels/wdw/header.h"
 #include "levels/bowser_2/header.h"
 #include "levels/bowser_2/header.h"
 #include "levels/bowser_3/header.h"
@@ -439,6 +440,59 @@ const char* DynOS_Builtin_Actor_GetNameFromIndex(s32 aIndex) {
 
 s32 DynOS_Builtin_Actor_GetCount() {
     return sizeof(sDynosBuiltinActors) / (2 * sizeof(sDynosBuiltinActors[0]));
+}
+
+
+  //////////////////
+ // Level Macros //
+//////////////////
+
+static const void* sDynosBuiltinLvlMacros[] = {
+    define_builtin(bbh_seg7_macro_objs),
+    define_builtin(bitdw_seg7_macro_objs),
+    define_builtin(bitfs_seg7_macro_objs),
+    define_builtin(bits_seg7_macro_objs),
+    define_builtin(bob_seg7_macro_objs),
+    define_builtin(castle_courtyard_seg7_macro_objs),
+    define_builtin(castle_grounds_seg7_macro_objs),
+    define_builtin(ccm_seg7_area_1_macro_objs),
+    define_builtin(ccm_seg7_area_2_macro_objs),
+    define_builtin(cotmc_seg7_macro_objs),
+    define_builtin(ddd_seg7_area_1_macro_objs),
+    define_builtin(ddd_seg7_area_2_macro_objs),
+    define_builtin(hmc_seg7_macro_objs),
+    define_builtin(jrb_seg7_area_1_macro_objs),
+    define_builtin(jrb_seg7_area_2_macro_objs),
+    define_builtin(lll_seg7_area_1_macro_objs),
+    define_builtin(lll_seg7_area_2_macro_objs),
+    define_builtin(pss_seg7_macro_objs),
+    define_builtin(rr_seg7_macro_objs),
+    define_builtin(sa_seg7_macro_objs),
+    define_builtin(sl_seg7_area_1_macro_objs),
+    define_builtin(sl_seg7_area_2_macro_objs),
+    define_builtin(ssl_seg7_area_1_macro_objs),
+    define_builtin(ssl_seg7_area_2_macro_objs),
+    define_builtin(ssl_seg7_area_3_macro_objs),
+    define_builtin(thi_seg7_area_1_macro_objs),
+    define_builtin(thi_seg7_area_2_macro_objs),
+    define_builtin(thi_seg7_area_3_macro_objs),
+    define_builtin(totwc_seg7_macro_objs),
+    define_builtin(ttc_seg7_macro_objs),
+    define_builtin(ttm_seg7_area_1_macro_objs),
+    define_builtin(ttm_seg7_area_2_macro_objs),
+    define_builtin(vcutm_seg7_macro_objs),
+    define_builtin(wdw_seg7_area_1_macro_objs),
+    define_builtin(wdw_seg7_area_2_macro_objs),
+    define_builtin(wf_seg7_macro_objs),
+    define_builtin(wmotr_seg7_macro_objs),
+};
+
+const MacroObject* DynOS_Builtin_LvlMacro_GetFromName(const char* aDataName) {
+    MGR_FIND_DATA(sDynosBuiltinLvlMacros, (const MacroObject*));
+}
+
+const char* DynOS_Builtin_LvlMacro_GetFromData(const MacroObject* aData) {
+    MGR_FIND_NAME(sDynosBuiltinLvlMacros);
 }
 
   ////////////////
@@ -1975,6 +2029,10 @@ static const void* sDynosBuiltinFuncs[] = {
     define_builtin(bhv_star_number_loop),
     define_builtin(spawn_star_number),
     define_builtin(bhv_ferris_wheel_platform_init),
+    define_builtin(geo_mario_cap_display_list),
+    define_builtin(bhv_ambient_light_update),
+    define_builtin(bhv_point_light_init),
+    define_builtin(bhv_point_light_loop),
 };
 
 const void* DynOS_Builtin_Func_GetFromName(const char* aDataName) {

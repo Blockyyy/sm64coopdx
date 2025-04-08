@@ -20,6 +20,7 @@
 #include "pc/djui/djui_console.h"
 #include "pc/djui/djui_hud_utils.h"
 #include "pc/djui/djui_panel_playerlist.h"
+#include "pc/djui/djui_theme.h"
 #include "game/skybox.h"
 #include "pc/gfx/gfx_pc.h"
 #include "include/course_table.h"
@@ -32,6 +33,10 @@
 #include "pc/discord/discord.h"
 #endif
 
+#ifdef COOPNET
+#include "pc/network/coopnet/coopnet.h"
+#endif
+
 static struct DateTime sDateTime;
 
 ///
@@ -40,20 +45,8 @@ u32 get_network_area_timer(void) {
     return gNetworkAreaTimer;
 }
 
-///
-
-s32* get_temp_s32_pointer(s32 initialValue) {
-    static s32 value = 0;
-    value = initialValue;
-    return &value;
-}
-
-s32 deref_s32_pointer(s32* pointer) {
-    if (pointer == NULL) {
-        LOG_LUA_LINE("Tried to dereference null pointer!");
-        return 0;
-    }
-    return *pointer;
+u16 get_area_update_counter(void) {
+    return gAreaUpdateCounter;
 }
 
 ///
@@ -91,8 +84,16 @@ bool djui_is_playerlist_open(void) {
     return gDjuiPlayerList->base.visible;
 }
 
+bool djui_attempting_to_open_playerlist(void) {
+    return gAttemptingToOpenPlayerlist;
+}
+
 enum DjuiFontType djui_menu_get_font(void) {
     return configDjuiThemeFont == 0 ? FONT_NORMAL : FONT_ALIASED;
+}
+
+struct DjuiTheme* djui_menu_get_theme(void) {
+    return gDjuiThemes[configDjuiTheme];
 }
 
 ///
@@ -105,7 +106,7 @@ s8 get_dialog_box_state(void) {
 ///
 
 extern u8 gLastCollectedStarOrKey;
-s32 get_last_star_or_key(void) {
+u8 get_last_star_or_key(void) {
     return gLastCollectedStarOrKey;
 }
 
@@ -137,7 +138,7 @@ bool get_got_file_coin_hi_score(void) {
 }
 
 void set_got_file_coin_hi_score(bool value) {
-    gGotFileCoinHiScore = value ? TRUE : FALSE;
+    gGotFileCoinHiScore = value;
 }
 
 extern s8 gSaveFileModified;
@@ -146,7 +147,7 @@ bool get_save_file_modified(void) {
 }
 
 void set_save_file_modified(bool value) {
-    gSaveFileModified = value ? TRUE : FALSE;
+    gSaveFileModified = value;
 }
 
 ///
@@ -414,11 +415,27 @@ s32 get_dialog_response(void) {
 
 const char* get_local_discord_id(void) {
 #ifdef DISCORD_SDK
-    static char sDiscordId[64] = "";
-    snprintf(sDiscordId, 64, "%" PRIu64 "", (uint64_t)discord_get_user_id());
-    return sDiscordId;
+    if (gDiscordInitialized) {
+        static char sDiscordId[64] = "";
+        snprintf(sDiscordId, 64, "%" PRIu64 "", (uint64_t)discord_get_user_id());
+        return sDiscordId;
+    } else {
+        return "0";
+    }
 #else
     return "0";
+#endif
+}
+
+const char* get_coopnet_id(UNUSED s8 localIndex) {
+#ifdef COOPNET
+    if (!gNetworkSystem || gNetworkSystem != &gNetworkSystemCoopNet) { return "-1"; }
+    if (localIndex < 0 || localIndex >= MAX_PLAYERS) { return "-1"; }
+    struct NetworkPlayer* np = &gNetworkPlayers[localIndex];
+    if (np == NULL || !np->connected) { return "-1"; }
+    return gNetworkSystem->get_id_str(np->localIndex);
+#else
+    return "-1";
 #endif
 }
 
@@ -475,6 +492,25 @@ void set_environment_region(u8 index, s32 value) {
     if (gEnvironmentRegions != NULL && index > 0 && index <= gEnvironmentRegions[0] && gEnvironmentRegionsLength > idx) {
         gEnvironmentRegions[idx] = value;
     }
+}
+
+///
+
+bool mod_file_exists(const char* filename) {
+    if (gLuaActiveMod == NULL) { return false; }
+
+    for (s32 i = 0; i < gLuaActiveMod->fileCount; i++) {
+        struct ModFile* file = &gLuaActiveMod->files[i];
+        if (!strcmp(file->relativePath, filename)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+struct Mod* get_active_mod(void) {
+    return gLuaActiveMod;
 }
 
 ///

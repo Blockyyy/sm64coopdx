@@ -17,6 +17,7 @@
 #include "game/skybox.h"
 #include "game/first_person_cam.h"
 #include "course_table.h"
+#include "skybox.h"
 
 /**
  * This file contains the code that processes the scene graph for rendering.
@@ -43,7 +44,6 @@
  *
  */
 
-#define MATRIX_STACK_SIZE 64
 #define DISPLAY_LIST_HEAP_SIZE 32000
 
 f32 gProjectionMaxNearValue = 5;
@@ -67,6 +67,15 @@ Mtx sPrevCamTranf, sCurrCamTranf = {
         {0.0f, 0.0f, 1.0f, 0.0f},
         {0.0f, 0.0f, 0.0f, 1.0f}
     }
+};
+
+static Gfx obj_sanitize_gfx[] = {
+    gsSPClearGeometryMode(G_TEXTURE_GEN),
+    gsSPSetGeometryMode(G_LIGHTING),
+    gsDPSetCombineMode(G_CC_SHADE, G_CC_SHADE),
+    gsSPTexture(0xFFFF, 0xFFFF, 0, 0, G_OFF),
+    gsDPSetAlphaCompare(G_AC_NONE),
+    gsSPEndDisplayList(),
 };
 
 /**
@@ -173,7 +182,7 @@ static Vp   sViewportInterp  = { 0 };
 
 static struct GraphNodeBackground* sBackgroundNode = NULL;
 Gfx* gBackgroundSkyboxGfx = NULL;
-Vtx* gBackgroundSkyboxVerts[3][3] = { 0 };
+Vtx* gBackgroundSkyboxVerts[SKYBOX_TILES_Y][SKYBOX_TILES_X] = { 0 };
 Mtx* gBackgroundSkyboxMtx = NULL;
 struct GraphNodeRoot* sBackgroundNodeRoot = NULL;
 
@@ -237,7 +246,7 @@ void patch_mtx_interpolated(f32 delta) {
         u16 perspNorm;
         f32 fovInterpolated = delta_interpolate_f32(sPerspectiveNode->prevFov, sPerspectiveNode->fov, delta);
         f32 near = MIN(sPerspectiveNode->near, gProjectionMaxNearValue);
-        guPerspective(sPerspectiveMtx, &perspNorm, get_first_person_enabled() ? gFirstPersonCamera.fov : not_zero(fovInterpolated, gOverrideFOV), sPerspectiveAspect, get_first_person_enabled() ? 1 : not_zero(near, gOverrideNear), not_zero(sPerspectiveNode->far, gOverrideFar), 1.0f);
+        guPerspective(sPerspectiveMtx, &perspNorm, fovInterpolated, sPerspectiveAspect, get_first_person_enabled() ? 1 : not_zero(near, gOverrideNear), not_zero(sPerspectiveNode->far, gOverrideFar), 1.0f);
         gSPMatrix(sPerspectivePos, VIRTUAL_TO_PHYSICAL(sPerspectiveNode), G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
     }
 
@@ -488,7 +497,7 @@ static void geo_process_perspective(struct GraphNodePerspective *node) {
     gProjectionVanillaNearValue = node->near;
     gProjectionVanillaFarValue = node->far;
     f32 near = MIN(node->near, gProjectionMaxNearValue);
-    guPerspective(mtx, &perspNorm, not_zero(node->prevFov, gOverrideFOV), aspect, get_first_person_enabled() ? 1 : not_zero(near, gOverrideNear), not_zero(node->far, gOverrideFar), 1.0f);
+    guPerspective(mtx, &perspNorm, node->prevFov, aspect, get_first_person_enabled() ? 1 : not_zero(near, gOverrideNear), not_zero(node->far, gOverrideFar), 1.0f);
 
     sPerspectiveNode = node;
     sPerspectiveMtx = mtx;
@@ -616,7 +625,7 @@ static void geo_process_translation_rotation(struct GraphNodeTranslationRotation
     Mat4 mtxf;
     Vec3f translation;
 
-    // Sanity check our stack index, If we above or equal to our stack size. Return to prevent OOB\.
+    // Sanity check our stack index, If we above or equal to our stack size. Return to prevent OOB.
     if ((gMatStackIndex + 1) >= MATRIX_STACK_SIZE) { LOG_ERROR("Preventing attempt to exceed the maximum size %i for our matrix stack with size of %i.", MATRIX_STACK_SIZE - 1, gMatStackIndex); return; }
 
     vec3s_to_vec3f(translation, node->translation);
@@ -801,8 +810,7 @@ static void geo_process_display_list(struct GraphNodeDisplayList *node) {
  */
 static void geo_process_generated_list(struct GraphNodeGenerated *node) {
     if (node->fnNode.func != NULL) {
-        Gfx *list = node->fnNode.func(GEO_CONTEXT_RENDER, &node->fnNode.node,
-                                     (struct DynamicPool *) gMatStack[gMatStackIndex]);
+        Gfx *list = node->fnNode.func(GEO_CONTEXT_RENDER, &node->fnNode.node, gMatStack[gMatStackIndex]);
 
         if (list != NULL) {
             geo_append_display_list((void *) VIRTUAL_TO_PHYSICAL(list), node->fnNode.node.flags >> 8);
@@ -1156,7 +1164,7 @@ static s32 obj_is_in_view(struct GraphNodeObject *node, Mat4 matrix) {
     // visibly pop in or out at the edge of the screen.
     //
     // Half of the fov in in-game angle units instead of degrees.
-    s16 halfFov = (get_first_person_enabled() ? gFirstPersonCamera.fov : not_zero(gCurGraphNodeCamFrustum->fov, gOverrideFOV) / 2.0f + 1.0f) * 32768.0f / 180.0f + 0.5f;
+    s16 halfFov = (gCurGraphNodeCamFrustum->fov / 2.0f + 1.0f) * 32768.0f / 180.0f + 0.5f;
 
     f32 divisor = coss(halfFov);
     if (divisor == 0) { divisor = 1; }
@@ -1198,6 +1206,12 @@ static s32 obj_is_in_view(struct GraphNodeObject *node, Mat4 matrix) {
     return TRUE;
 }
 
+static void geo_sanitize_object_gfx() {
+    geo_append_display_list(obj_sanitize_gfx, LAYER_OPAQUE);
+    geo_append_display_list(obj_sanitize_gfx, LAYER_ALPHA);
+    geo_append_display_list(obj_sanitize_gfx, LAYER_TRANSPARENT);
+}
+
 /**
  * Process an object node.
  */
@@ -1209,7 +1223,7 @@ static void geo_process_object(struct Object *node) {
     s32 hasAnimation = (node->header.gfx.node.flags & GRAPH_RENDER_HAS_ANIMATION) != 0;
     Vec3f scalePrev;
 
-    // Sanity check our stack index, If we above or equal to our stack size. Return to prevent OOB\.
+    // Sanity check our stack index, If we above or equal to our stack size. Return to prevent OOB.
     if ((gMatStackIndex + 1) >= MATRIX_STACK_SIZE) { LOG_ERROR("Preventing attempt to exceed the maximum size %i for our matrix stack with size of %i.", MATRIX_STACK_SIZE - 1, gMatStackIndex); return; }
 
     if (!node->header.gfx.inited) {
@@ -1236,6 +1250,7 @@ static void geo_process_object(struct Object *node) {
         }
     }
 
+    bool noBillboard = (node->header.gfx.sharedChild && node->header.gfx.sharedChild->extraFlags & GRAPH_EXTRA_FORCE_3D);
     if (node->header.gfx.areaIndex == gCurGraphNodeRoot->areaIndex) {
         if (node->header.gfx.throwMatrix != NULL) {
 
@@ -1248,14 +1263,13 @@ static void geo_process_object(struct Object *node) {
                 mtxf_copy(mtxf, node->header.gfx.prevThrowMatrix);
                 mtxf_mul(gMatStackPrev[gMatStackIndex + 1], mtxf, gMatStackPrev[gMatStackIndex]);
             } else {
-                mtxf_mul(gMatStackPrev[gMatStackIndex + 1], (void *) node->header.gfx.throwMatrix,
-                         gMatStackPrev[gMatStackIndex]);
+                mtxf_mul(gMatStackPrev[gMatStackIndex + 1], (void *) node->header.gfx.throwMatrix, gMatStackPrev[gMatStackIndex]);
             }
 
             mtxf_copy(node->header.gfx.prevThrowMatrix, *node->header.gfx.throwMatrix);
             node->header.gfx.prevThrowMatrixTimestamp = gGlobalTimer;
 
-        } else if ((node->header.gfx.node.flags & GRAPH_RENDER_CYLBOARD) && !(node->header.gfx.sharedChild && node->header.gfx.sharedChild->extraFlags & GRAPH_EXTRA_FORCE_3D)) {
+        } else if (node->header.gfx.node.flags & GRAPH_RENDER_CYLBOARD && !noBillboard) {
 
             Vec3f posPrev;
 
@@ -1269,12 +1283,10 @@ static void geo_process_object(struct Object *node) {
 
             vec3f_copy(node->header.gfx.prevPos, node->header.gfx.pos);
             node->header.gfx.prevTimestamp = gGlobalTimer;
-            mtxf_cylboard(gMatStack[gMatStackIndex + 1], gMatStack[gMatStackIndex],
-                           node->header.gfx.pos, gCurGraphNodeCamera->roll);
-            mtxf_cylboard(gMatStackPrev[gMatStackIndex + 1], gMatStackPrev[gMatStackIndex],
-                           posPrev, gCurGraphNodeCamera->roll);
+            mtxf_cylboard(gMatStack[gMatStackIndex + 1], gMatStack[gMatStackIndex], node->header.gfx.pos, gCurGraphNodeCamera->roll);
+            mtxf_cylboard(gMatStackPrev[gMatStackIndex + 1], gMatStackPrev[gMatStackIndex], posPrev, gCurGraphNodeCamera->roll);
 
-        } else if ((node->header.gfx.node.flags & GRAPH_RENDER_BILLBOARD) && !(node->header.gfx.sharedChild && node->header.gfx.sharedChild->extraFlags & GRAPH_EXTRA_FORCE_3D)) {
+        } else if (node->header.gfx.node.flags & GRAPH_RENDER_BILLBOARD && !noBillboard) {
 
             Vec3f posPrev;
 
@@ -1288,10 +1300,8 @@ static void geo_process_object(struct Object *node) {
 
             vec3f_copy(node->header.gfx.prevPos, node->header.gfx.pos);
             node->header.gfx.prevTimestamp = gGlobalTimer;
-            mtxf_billboard(gMatStack[gMatStackIndex + 1], gMatStack[gMatStackIndex],
-                           node->header.gfx.pos, gCurGraphNodeCamera->roll);
-            mtxf_billboard(gMatStackPrev[gMatStackIndex + 1], gMatStackPrev[gMatStackIndex],
-                           posPrev, gCurGraphNodeCamera->roll);
+            mtxf_billboard(gMatStack[gMatStackIndex + 1], gMatStack[gMatStackIndex], node->header.gfx.pos, gCurGraphNodeCamera->roll);
+            mtxf_billboard(gMatStackPrev[gMatStackIndex + 1], gMatStackPrev[gMatStackIndex], posPrev, gCurGraphNodeCamera->roll);
 
         } else {
 
@@ -1358,6 +1368,7 @@ static void geo_process_object(struct Object *node) {
             if (node->header.gfx.sharedChild != NULL) {
                 gCurGraphNodeObject = (struct GraphNodeObject *) node;
                 node->header.gfx.sharedChild->parent = &node->header.gfx.node;
+                geo_sanitize_object_gfx();
                 geo_process_node_and_siblings(node->header.gfx.sharedChild);
                 node->header.gfx.sharedChild->parent = NULL;
                 gCurGraphNodeObject = NULL;
@@ -1469,6 +1480,7 @@ void geo_process_held_object(struct GraphNodeHeldObject *node) {
             dynos_gfx_swap_animations(node->objNode);
         }
 
+        geo_sanitize_object_gfx();
         geo_process_node_and_siblings(node->objNode->header.gfx.sharedChild);
         gCurGraphNodeHeldObject = NULL;
         gCurAnimType = gGeoTempState.type;
@@ -1495,6 +1507,7 @@ void geo_try_process_children(struct GraphNode *node) {
     }
 }
 
+#define MAX_GRAPH_NODE_DEPTH 5000
 /**
  * Process a generic geo node and its siblings.
  * The first argument is the start node, and all its siblings will
@@ -1512,6 +1525,8 @@ void geo_process_node_and_siblings(struct GraphNode *firstNode) {
     // processed instead of all children like usual
     if (parent != NULL) {
         iterateChildren = (parent->type != GRAPH_NODE_TYPE_SWITCH_CASE);
+
+        if (parent->hookProcess) smlua_call_event_hooks_graph_node_and_int_param(HOOK_ON_GEO_PROCESS_CHILDREN, parent, gMatStackIndex);
     }
 
     do {
@@ -1532,12 +1547,13 @@ void geo_process_node_and_siblings(struct GraphNode *firstNode) {
         }
 
         // Break out of endless loops
-        if (++depthSanity > 5000) {
+        if (++depthSanity > MAX_GRAPH_NODE_DEPTH) {
             LOG_ERROR("Graph Node too deep!");
             break;
         }
 
         if (curGraphNode->flags & GRAPH_RENDER_ACTIVE) {
+            if (curGraphNode->hookProcess) smlua_call_event_hooks_graph_node_and_int_param(HOOK_BEFORE_GEO_PROCESS, curGraphNode, gMatStackIndex);
             if (curGraphNode->flags & GRAPH_RENDER_CHILDREN_FIRST) {
                 geo_try_process_children(curGraphNode);
             } else {
@@ -1605,6 +1621,7 @@ void geo_process_node_and_siblings(struct GraphNode *firstNode) {
                         break;
                 }
             }
+            if (curGraphNode->hookProcess) smlua_call_event_hooks_graph_node_and_int_param(HOOK_ON_GEO_PROCESS, curGraphNode, gMatStackIndex + 1);
         } else {
             if (curGraphNode && curGraphNode->type == GRAPH_NODE_TYPE_OBJECT) {
                 ((struct GraphNodeObject *) curGraphNode)->throwMatrix = NULL;
@@ -1625,7 +1642,7 @@ static void geo_clear_interp_variables(void) {
 
     sBackgroundNode = NULL;
     gBackgroundSkyboxGfx = NULL;
-    memset(gBackgroundSkyboxVerts, 0, sizeof(Vtx*) * 3 * 3);
+    memset(gBackgroundSkyboxVerts, 0, sizeof(Vtx*) * SKYBOX_TILES_Y * SKYBOX_TILES_X);
     gBackgroundSkyboxMtx = NULL;
     sBackgroundNodeRoot = NULL;
 

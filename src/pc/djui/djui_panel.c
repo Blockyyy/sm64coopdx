@@ -13,6 +13,8 @@ static struct DjuiPanel* sPanelList = NULL;
 static struct DjuiPanel* sPanelRemoving = NULL;
 static f32 sMoveAmount = 0;
 
+bool gDjuiPanelDisableBack = false;
+
 bool djui_panel_is_active(void) {
     return (sPanelList != NULL);
 }
@@ -58,6 +60,7 @@ struct DjuiPanel* djui_panel_add(struct DjuiBase* caller, struct DjuiThreePanel*
     panel->defaultElementBase = defaultElementBase;
     panel->on_back = threePanel->on_back;
     panel->on_panel_destroy = NULL;
+    panel->temporary = threePanel->temporary;
     sPanelList = panel;
 
     // find better defaultElementBase
@@ -95,6 +98,7 @@ struct DjuiPanel* djui_panel_add(struct DjuiBase* caller, struct DjuiThreePanel*
 void djui_panel_back(void) {
     if (sPanelRemoving != NULL) { return; }
     if (sPanelList == NULL) { return; }
+    if (gDjuiPanelDisableBack) { return; }
     if (sPanelList->parent == NULL) {
         if (gDjuiPanelPauseCreated) { djui_panel_shutdown(); }
         return;
@@ -118,6 +122,7 @@ void djui_panel_back(void) {
 
     // set the previous active
     sPanelList = sPanelList->parent;
+    if (sPanelList->temporary) { sPanelList = sPanelList->parent; }
 
     // reset move amount
     sMoveAmount = 0;
@@ -175,12 +180,12 @@ void djui_panel_update(void) {
     }
 
     if (activeBase && removingBase) {
-        activeBase->y.value = moveMax - moveMax * smoothstep(0, moveMax, sMoveAmount);
+        activeBase->y.value = moveMax - moveMax * smooth_step(0, moveMax, sMoveAmount);
         if (sPanelRemoving) {
             removingBase->y.value = activeBase->y.value - 1.0f;
         }
     } else if (activeBase && parentBase) {
-        activeBase->y.value = moveMax * smoothstep(0, moveMax, sMoveAmount) - moveMax;
+        activeBase->y.value = moveMax * smooth_step(0, moveMax, sMoveAmount) - moveMax;
         parentBase->y.value = activeBase->y.value + moveMax;
     }
 }

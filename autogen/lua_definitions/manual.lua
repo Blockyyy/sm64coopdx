@@ -31,6 +31,16 @@ gCharacters = {}
 --- - Index 0 always refers to the local player
 gControllers = {}
 
+--- @type Pointer_Mat4[]
+--- Matrix stack used during geo process
+--- - Only has an effect when used in a geo process hook
+gMatStack = {}
+
+--- @type Pointer_Mat4[]
+--- Matrix stack used during geo process
+--- - Only has an effect when used in a geo process hook
+gMatStackPrev = {}
+
 --- @type GlobalTextures
 --- Struct containing HUD glyph textures
 gTextures = {}
@@ -129,8 +139,8 @@ function hook_event(hookEventType, func)
 end
 
 --- @class ActionTable
-    --- @field every_frame fun(m:MarioState):integer?
-    --- @field gravity fun(m:MarioState):integer?
+--- @field every_frame fun(m:MarioState):integer?
+--- @field gravity fun(m:MarioState):integer?
 
 --- @param actionId integer The action to replace
 --- @param funcOrFuncTable fun(m:MarioState):integer? | ActionTable The new behavior of the action
@@ -150,8 +160,16 @@ function hook_on_sync_table_change(syncTable, field, tag, func)
     -- ...
 end
 
+--- @param message string The message for the text to show
+--- @return integer
+--- Hooks DJUI text into the mod menu
+function hook_mod_menu_text(message)
+    -- ...
+end
+
 --- @param name string The text to show on the button
 --- @param func fun(index:integer) The function that is called when the button is pressed
+--- @return integer
 --- Hooks a DJUI button into the mod menu
 function hook_mod_menu_button(name, func)
     -- ...
@@ -160,6 +178,7 @@ end
 --- @param name string The text to show on the left
 --- @param defaultValue boolean The default state of the checkbox
 --- @param func fun(index:integer, value:boolean) The function that is called when the checkbox is changed
+--- @return integer
 --- Hooks a DJUI checkbox into the mod menu
 function hook_mod_menu_checkbox(name, defaultValue, func)
     -- ...
@@ -170,6 +189,7 @@ end
 --- @param min integer The lowest the slider can go
 --- @param max integer The highest the slider can go
 --- @param func fun(index:integer, value:integer) The function that is called when the value of the slider changes
+--- @return integer
 --- Hooks a DJUI slider into the mod menu
 function hook_mod_menu_slider(name, defaultValue, min, max, func)
     -- ...
@@ -179,6 +199,7 @@ end
 --- @param defaultValue string The default text in the inputbox
 --- @param stringLength integer The max length of the inputbox
 --- @param func fun(index:integer, value:string) The function that is called when the value of the inputbox changes
+--- @return integer
 --- Hooks a DJUI inputbox into the mod menu
 function hook_mod_menu_inputbox(name, defaultValue, stringLength, func)
     -- ...
@@ -192,28 +213,33 @@ function update_mod_menu_element_name(index, name)
     -- ...
 end
 
+--- @param index integer The index of the element in the order in which they were hooked
+--- @param value boolean The boolean value to change to
+--- Updates a mod menu checkbox element's boolean value
+--- - NOTE: `index` is zero-indexed
+function update_mod_menu_element_checkbox(index, value)
+    -- ...
+end
+
+--- @param index integer The index of the element in the order in which they were hooked
+--- @param value number The number value to change to
+--- Updates a mod menu slider element's numerical value
+--- - NOTE: `index` is zero-indexed
+function update_mod_menu_element_slider(index, value)
+    -- ...
+end
+
+--- @param index integer The index of the element in the order in which they were hooked
+--- @param value string The text to change to
+--- Updates a mod menu inputbox element's string value
+--- - NOTE: `index` is zero-indexed
+function update_mod_menu_element_inputbox(index, value)
+    -- ...
+end
+
 ---------------
 -- functions --
 ---------------
-
---- @param t number Angle
---- @return number
-function sins(t)
-    -- ...
-end
-
---- @param t number Angle
---- @return number
-function coss(t)
-    -- ...
-end
-
---- @param y number
---- @param x number
---- @return integer
-function atan2s(y, x)
-    -- ...
-end
 
 --- @param objFieldTable table<any, "u32"|"s32"|"f32">
 --- Keys must start with `o` and values must be `"u32"`, `"s32"`, or `"f32"`
@@ -222,7 +248,7 @@ function define_custom_obj_fields(objFieldTable)
 end
 
 --- @param object Object Object to sync
---- @param standardSync boolean Automatically syncs common fields and syncs with distance. If `false`, all syncing must be done with `network_send_object`.
+--- @param standardSync boolean Automatically syncs common fields and syncs with distance. If `false`, all syncing must be done with `network_send_object`
 --- @param fieldTable table<string> The fields to sync
 --- All synced fields must start with `o` and there should not be any keys, just values
 function network_init_object(object, standardSync, fieldTable)
@@ -237,8 +263,8 @@ function network_send_object(object, reliable)
 end
 
 --- @param reliable boolean Whether or not the game should try to resend the packet in case its lost, good for important packets
---- @param dataTable table Table of values to be included in the packet
---- `dataTable` can only contain strings, integers, numbers, booleans, and nil
+--- @param dataTable table<string, number|boolean|string|nil> Table of values to be included in the packet
+--- Sends a global Lua packet with the values of `dataTable`
 function network_send(reliable, dataTable)
     -- ...
 end
@@ -246,7 +272,7 @@ end
 --- @param toLocalIndex integer The local index to send the packet to
 --- @param reliable boolean Whether or not the game should try to resend the packet in case its lost, good for important packets
 --- @param dataTable table Table of values to be included in the packet
---- `dataTable` can only contain strings, integers, numbers, booleans, and nil
+--- Sends a Lua packet with the values of `dataTable` to a specific client through local indices
 function network_send_to(toLocalIndex, reliable, dataTable)
     -- ...
 end
@@ -330,16 +356,16 @@ function texture_override_reset(textureName)
     -- ...
 end
 
---- @class bhvData
+--- @class BehaviorData
 --- @field behavior BehaviorId
 --- @field behaviorArg integer
 
 --- @param levelNum LevelNum | integer
---- @param func fun(areaIndex:number, bhvData:bhvData, macroBhvIds:BehaviorId[], macroBhvArgs:integer[])
+--- @param func fun(areaIndex:number, bhvData:BehaviorData, macroBhvIds:BehaviorId[], macroBhvArgs:integer[])
 --- When `func` is called, arguments are filled depending on the level command:
---- - `AREA` command: only `areaIndex` is filled. It's a number.
---- - `OBJECT` command: only `bhvData` is filled. `bhvData` is a table with two fields: `behavior` and `behaviorArg`.
---- - `MACRO` command: only `macroBhvIds` and `macroBhvArgs` are filled. `macrobhvIds` is a list of behavior ids. `macroBhvArgs` is a list of behavior params. Both lists have the same size and start at index 0.
+--- - `AREA` command: only `areaIndex` is filled. It's a number
+--- - `OBJECT` command: only `bhvData` is filled. `bhvData` is a table with nine fields: 'behavior', 'behaviorArg', 'model', 'posX', 'posY', 'posZ', 'pitch', 'yaw' and 'roll'
+--- - `MACRO` command: only `macroBhvIds`, `macroBhvArgs` and 'macroBhvModels' are filled. `macroBhvIds` is a list of behavior ids. `macroBhvArgs` is a list of behavior params. 'macroBhvModels' is a list of model ids. All lists have the same size and start at index 0
 function level_script_parse(levelNum, func)
     -- ...
 end
@@ -381,5 +407,52 @@ end
 --- @return RayIntersectionInfo
 --- Shoots a raycast from `startX`, `startY`, and `startZ` in the direction of `dirX`, `dirY`, and `dirZ`
 function collision_find_surface_on_ray(startX, startY, startZ, dirX, dirY, dirZ, precision)
+    -- ...
+end
+
+--- @param contents ExclamationBoxContent[]
+--- Sets the contents that the exclamation box spawns.
+--- A single content has 5 keys: `id`, `unused`, `firstByte`, `model`, and `behavior`
+--- * `id`: Required; what value the box's oBehParams2ndByte needs to be to spawn this object
+--- * `unused`: Optional; unused by vanilla
+--- * `firstByte`: Optional; Overrides the 1st byte given to the spawned object
+--- * `model`: Required; The model that the object will spawn with. Uses `ModelExtendedId`
+--- * `behavior`: Required; The behavior ID that the object will spawn with. Uses `BehaviorId`
+function set_exclamation_box_contents(contents)
+    -- ...
+end
+
+--- @return ExclamationBoxContent[]
+--- Gets the contents that the exclamation box spawns
+--- A single content has 5 keys: `id`, `unused`, `firstByte`, `model`, and `behavior`
+--- * `id`: Required; what value the box's oBehParams2ndByte needs to be to spawn this object
+--- * `unused`: Optional; unused by vanilla
+--- * `firstByte`: Optional; Overrides the 1st byte given to the spawned object
+--- * `model`: Required; The model that the object will spawn with. Uses `ModelExtendedId`
+--- * `behavior`: Required; The behavior ID that the object will spawn with. Uses `BehaviorId`
+function get_exclamation_box_contents()
+    -- ...
+end
+
+--- @param node GraphNode | FnGraphNode
+--- @return GraphNode | GraphNodeAnimatedPart | GraphNodeBackground | GraphNodeBillboard | GraphNodeCamera | GraphNodeCullingRadius | GraphNodeDisplayList | GraphNodeGenerated | GraphNodeHeldObject | GraphNodeLevelOfDetail | GraphNodeMasterList | GraphNodeObject | GraphNodeObjectParent | GraphNodeOrthoProjection | GraphNodePerspective | GraphNodeRotation | GraphNodeScale | GraphNodeShadow | GraphNodeStart | GraphNodeSwitchCase | GraphNodeTranslation | GraphNodeTranslationRotation
+--- Returns the specific GraphNode(...) the node is part of.
+--- Basically the reverse of `.node` or `.fnNode`
+function cast_graph_node(node)
+    -- ...
+end
+
+--- @param str string
+--- @return string
+--- Removes color codes from a string
+function get_uncolored_string(str)
+    -- ...
+end
+
+--- @param gfx Gfx
+--- @param command string
+--- @vararg integer Parameters for the command
+--- Sets the specified display list command on the display list given
+function gfx_set_command(gfx, command, ...)
     -- ...
 end

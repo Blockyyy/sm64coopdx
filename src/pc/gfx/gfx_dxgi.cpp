@@ -417,7 +417,8 @@ static void gfx_dxgi_init(const char *window_title) {
     update_screen_settings();
 }
 
-static void gfx_dxgi_set_keyboard_callbacks(bool (*on_key_down)(int scancode), bool (*on_key_up)(int scancode), void (*on_all_keys_up)(void), void (*on_text_input)(char*)) {
+static void gfx_dxgi_set_keyboard_callbacks(bool (*on_key_down)(int scancode), bool (*on_key_up)(int scancode), void (*on_all_keys_up)(void),
+                                            void (*on_text_input)(char*), UNUSED void (*on_text_editing)(char*, int)) {
     dxgi.on_key_down = on_key_down;
     dxgi.on_key_up = on_key_up;
     dxgi.on_all_keys_up = on_all_keys_up;
@@ -719,26 +720,40 @@ void gfx_dxgi_start_text_input(void) { inTextInput = TRUE; }
 void gfx_dxgi_stop_text_input(void) { inTextInput = FALSE; }
 
 static char* gfx_dxgi_get_clipboard_text(void) {
+    static char clipboard_buf[WAPI_CLIPBOARD_BUFSIZ];
+    clipboard_buf[0] = '\0';
+
     if (OpenClipboard(NULL)) {
-        HANDLE clip = GetClipboardData(CF_TEXT);
+        LPCWSTR text = (LPCWSTR)GetClipboardData(CF_UNICODETEXT);
+        if (text != NULL) {
+            WideCharToMultiByte(CP_UTF8, 0, text, (-1), clipboard_buf, WAPI_CLIPBOARD_BUFSIZ, NULL, NULL);
+        }
         CloseClipboard();
-        return (char*)clip;
     }
-    return NULL;
+
+    clipboard_buf[WAPI_CLIPBOARD_BUFSIZ - 1] = '\0';
+    return clipboard_buf;
 }
 
-void gfx_dxgi_set_clipboard_text(char* text) {
-    if (OpenClipboard(NULL)) {
-        HGLOBAL clipbuffer;
-        char *buffer;
-        EmptyClipboard();
-        clipbuffer = GlobalAlloc(GMEM_DDESHARE, strlen(text) + 1);
-        buffer = (char *) GlobalLock(clipbuffer);
-        strcpy(buffer, LPCSTR(text));
-        GlobalUnlock(clipbuffer);
-        SetClipboardData(CF_TEXT, clipbuffer);
-        CloseClipboard();
+void gfx_dxgi_set_clipboard_text(const char* text) {
+    if (!OpenClipboard(NULL)) { return; }
+    EmptyClipboard();
+
+    int cch = MultiByteToWideChar(CP_UTF8, 0, text, (-1), NULL, 0);
+    if (cch > 0) {
+        HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, cch * sizeof(WCHAR));
+        if (hMem != NULL) {
+            LPWSTR wcsBuffer = (LPWSTR)GlobalLock(hMem);
+            if (wcsBuffer != NULL) {
+                MultiByteToWideChar(CP_UTF8, 0, text, (-1), wcsBuffer, cch);
+                GlobalUnlock(hMem);
+                SetClipboardData(CF_UNICODETEXT, hMem);
+            } else {
+                GlobalFree(hMem);
+            }
+        }
     }
+    CloseClipboard();
 }
 
 void gfx_dxgi_set_cursor_visible(bool visible) { ShowCursor(visible); }

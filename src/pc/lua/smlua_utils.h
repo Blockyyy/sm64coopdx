@@ -28,8 +28,8 @@ struct LSTNetworkType smlua_to_lnt(lua_State* L, int index);
 bool packet_write_lnt(struct Packet* p, struct LSTNetworkType* lnt);
 bool packet_read_lnt(struct Packet* p, struct LSTNetworkType* lnt);
 
-void smlua_push_object(lua_State* L, u16 lot, void* p);
-void smlua_push_pointer(lua_State* L, u16 lvt, void* p);
+CObject *smlua_push_object(lua_State* L, u16 lot, void* p, void *extraInfo);
+CPointer *smlua_push_pointer(lua_State* L, u16 lvt, void* p, void *extraInfo);
 void smlua_push_integer_field(int index, const char* name, lua_Integer val);
 void smlua_push_number_field(int index, const char* name, lua_Number val);
 void smlua_push_string_field(int index, const char* name, const char* val);
@@ -54,5 +54,6 @@ void smlua_logline(void);
 void smlua_dump_stack(void);
 void smlua_dump_globals(void);
 void smlua_dump_table(int index);
+void smlua_free(void *ptr);
 
 #endif

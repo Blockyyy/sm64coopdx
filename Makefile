@@ -7,6 +7,7 @@ default: all
 
 # Preprocessor definitions
 DEFINES :=
+C_DEFINES :=
 
 #==============================================================================#
 # Build Options                                                                #
@@ -27,6 +28,9 @@ TARGET_N64 = 0
 # Build and optimize for Raspberry Pi(s)
 TARGET_RPI ?= 0
 
+# Build and optimize for RK3588 processor
+TARGET_RK3588 ?= 0
+
 # Makeflag to enable OSX fixes
 OSX_BUILD ?= 0
 
@@ -45,7 +49,7 @@ COOPNET ?= 1
 # Enable docker build workarounds
 DOCKERBUILD ?= 0
 # Sets your optimization level for building.
-# A choose is chosen by default for you.
+# A choice is made by default for you.
 OPT_LEVEL ?= -1
 # Enable compiling with more debug info.
 DEBUG_INFO_LEVEL ?= 2
@@ -66,8 +70,6 @@ ifeq ($(shell arch),arm64)
 else
   MIN_MACOS_VERSION ?= 10.15
 endif
-# Homebrew Prefix
-BREW_PREFIX ?= $(shell brew --prefix)
 # Make some small adjustments for handheld devices
 HANDHELD ?= 0
 
@@ -122,6 +124,22 @@ endif
 
 ifeq ($(HOST_OS),Darwin)
   OSX_BUILD := 1
+
+  ifndef BREW_PREFIX
+    BREW_PREFIX := $(shell brew --prefix)
+  endif
+endif
+
+ifeq ($(HOST_OS),Linux)
+  machine = $(shell sh -c 'uname -m 2>/dev/null || echo unknown')
+  ifneq (,$(findstring aarch64,$(machine)))
+    #Raspberry Pi 4-5
+    TARGET_RPI = 1
+  endif
+  ifneq (,$(findstring arm,$(machine)))
+    #Rasberry Pi zero, 2, 3, etc
+    TARGET_RPI = 1
+  endif
 endif
 
 # MXE overrides
@@ -270,8 +288,6 @@ endif
 ifeq ($(TARGET_RPI),1)
   $(info Compiling for Raspberry Pi)
   DISCORD_SDK := 0
-  COOPNET := 0
-	machine = $(shell sh -c 'uname -m 2>/dev/null || echo unknown')
 
     # Raspberry Pi B+, Zero, etc
 	ifneq (,$(findstring armv6l,$(machine)))
@@ -302,18 +318,29 @@ ifeq ($(TARGET_RPI),1)
 	endif
 endif
 
+ifeq ($(TARGET_RK3588),1)
+  $(info Compiling for RK3588)
+  DISCORD_SDK := 0
+  COOPNET := 0
+  machine = $(shell sh -c 'uname -m 2>/dev/null || echo unknown')
+
+  # RK3588 in ARM64 (aarch64) mode
+  $(info ARM64 mode)
+  OPT_FLAGS := -march=armv8.2-a+crc+simd -mtune=cortex-a76 -O3
+endif
+
 # Set BITS (32/64) to compile for
 OPT_FLAGS += $(BITS)
 
 TARGET := sm64.$(VERSION)
 
-# Stuff for showing the git hash in the intro on nightly builds
-# From https://stackoverflow.com/questions/44038428/include-git-commit-hash-and-or-branch-name-in-c-c-source
-#ifeq ($(shell git rev-parse --abbrev-ref HEAD),nightly)
-#  GIT_HASH=`git rev-parse --short HEAD`
-#  COMPILE_TIME=`date -u +'%Y-%m-%d %H:%M:%S UTC'`
-#  DEFINES += -DNIGHTLY -DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\""
-#endif
+# Stuff for showing the git hash and build time in dev builds
+# Originally from https://stackoverflow.com/questions/44038428/include-git-commit-hash-and-or-branch-name-in-c-c-source
+ifneq ($(shell git rev-parse --abbrev-ref HEAD),main)
+  GIT_HASH=$(shell git rev-parse --short HEAD)
+  COMPILE_TIME=$(shell date -u +'%Y-%m-%d %H:%M:%S UTC')
+  C_DEFINES += -DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\""
+endif
 
 
 # GRUCODE - selects which RSP microcode to use.
@@ -344,6 +371,10 @@ endif
 
 ifeq ($(TARGET_RPI),1) # Define RPi to change SDL2 title & GLES2 hints
      DEFINES += USE_GLES=1
+endif
+
+ifeq ($(TARGET_RK3588),1) # Define RK3588 to change SDL2 title & GLES2 hints
+  DEFINES += USE_GLES=1
 endif
 
 ifeq ($(OSX_BUILD),1) # Modify GFX & SDL2 for OSX GL
@@ -439,16 +470,6 @@ TOOLS_DIR := tools
 PYTHON := python3
 
 ifeq ($(filter clean distclean print-%,$(MAKECMDGOALS)),)
-
-  # Make sure assets exist
-  NOEXTRACT ?= 0
-  ifeq ($(NOEXTRACT),0)
-    DUMMY != $(PYTHON) extract_assets.py $(VERSION) >&2 || echo FAIL
-    ifeq ($(DUMMY),FAIL)
-      $(error Failed to extract assets)
-    endif
-  endif
-
   ifeq ($(WINDOWS_AUTO_BUILDER),0)
     $(info Building tools...)
     DUMMY != $(MAKE) -C $(TOOLS_DIR) >&2 || echo FAIL
@@ -487,6 +508,10 @@ else # Linux builds/binary namer
 	endif
 endif
 
+ifeq ($(TARGET_RK3588),1)
+  EXE := $(BUILD_DIR)/sm64coopdx.arm
+endif
+
 ELF            := $(BUILD_DIR)/$(TARGET).elf
 LIBULTRA       := $(BUILD_DIR)/libultra.a
 LD_SCRIPT      := sm64.ld
@@ -506,6 +531,8 @@ SRC_DIRS += src/pc src/pc/gfx src/pc/audio src/pc/controller src/pc/fs src/pc/fs
 ifeq ($(DISCORD_SDK),1)
   SRC_DIRS += src/pc/discord
 endif
+
+SRC_DIRS += src/pc/mumble
 
 ULTRA_SRC_DIRS := lib/src lib/src/math lib/asm lib/data
 ULTRA_BIN_DIRS := lib/bin
@@ -762,6 +789,8 @@ else ifeq ($(findstring SDL,$(WINDOW_API)),SDL)
     BACKEND_LDFLAGS += -lglew32 -lglu32 -lopengl32
   else ifeq ($(TARGET_RPI),1)
     BACKEND_LDFLAGS += -lGLESv2
+  else ifeq ($(TARGET_RK3588),1)
+    BACKEND_LDFLAGS += -lGLESv2
   else ifeq ($(OSX_BUILD),1)
     BACKEND_LDFLAGS += -framework OpenGL `pkg-config --libs glew` -mmacosx-version-min=$(MIN_MACOS_VERSION)
     EXTRA_CPP_FLAGS += -stdlib=libc++ -std=c++17 -mmacosx-version-min=$(MIN_MACOS_VERSION)
@@ -814,7 +843,7 @@ ifneq ($(SDL1_USED)$(SDL2_USED),00)
   endif
 endif
 
-C_DEFINES := $(foreach d,$(DEFINES),-D$(d))
+C_DEFINES += $(foreach d,$(DEFINES),-D$(d))
 DEF_INC_CFLAGS := $(foreach i,$(INCLUDE_DIRS),-I$(i)) $(C_DEFINES)
 
 # Check code syntax with host compiler
@@ -866,7 +895,10 @@ ifeq ($(WINDOWS_BUILD),1)
   ifeq ($(CROSS),)
     LDFLAGS += -no-pie
   endif
+  LDFLAGS += -T windows.ld
 else ifeq ($(TARGET_RPI),1)
+  LDFLAGS := $(OPT_FLAGS) -lm $(BACKEND_LDFLAGS) -no-pie
+else ifeq ($(TARGET_RK3588),1)
   LDFLAGS := $(OPT_FLAGS) -lm $(BACKEND_LDFLAGS) -no-pie
 else ifeq ($(OSX_BUILD),1)
   LDFLAGS := -lm $(BACKEND_LDFLAGS) -lpthread
@@ -937,6 +969,8 @@ else ifeq ($(TARGET_RPI),1)
   else
     LDFLAGS += -Llib/lua/linux -l:liblua53-arm.a
   endif
+else ifeq ($(TARGET_RK3588),1)
+  LDFLAGS += -Llib/lua/linux -l:liblua53-arm64.a
 else
   LDFLAGS += -Llib/lua/linux -l:liblua53.a -ldl
 endif
@@ -946,9 +980,9 @@ COOPNET_LIBS :=
 ifeq ($(COOPNET),1)
   ifeq ($(WINDOWS_BUILD),1)
     ifeq ($(TARGET_BITS), 32)
-      LDFLAGS += -Llib/coopnet/win32 -l:libcoopnet.a -l:libjuice.a -lbcrypt -lws2_32 -liphlpapi
+      LDFLAGS += -Llib/coopnet/win32 -l:libcoopnet.a -l:libjuice.a -lbcrypt -liphlpapi
     else
-      LDFLAGS += -Llib/coopnet/win64 -l:libcoopnet.a -l:libjuice.a -lbcrypt -lws2_32 -liphlpapi
+      LDFLAGS += -Llib/coopnet/win64 -l:libcoopnet.a -l:libjuice.a -lbcrypt -liphlpapi
     endif
   else ifeq ($(OSX_BUILD),1)
     ifeq ($(shell uname -m),arm64)
@@ -962,10 +996,12 @@ ifeq ($(COOPNET),1)
     endif
   else ifeq ($(TARGET_RPI),1)
     ifneq (,$(findstring aarch64,$(machine)))
-      LDFLAGS += -Llib/coopnet/linux -l:libcoopnet-arm64.a -l:libjuice.a
+      LDFLAGS += -Llib/coopnet/linux -l:libcoopnet-arm64.a -l:libjuice-arm64.a
     else
-      LDFLAGS += -Llib/coopnet/linux -l:libcoopnet-arm.a -l:libjuice.a
+      LDFLAGS += -Llib/coopnet/linux -l:libcoopnet-arm.a -l:libjuice-arm.a
     endif
+  else ifeq ($(TARGET_RK3588),1)
+    LDFLAGS += -Llib/coopnet/linux -l:libcoopnet-arm64.a -l:libjuice.a
   else
     LDFLAGS += -Llib/coopnet/linux -l:libcoopnet.a -l:libjuice.a
   endif
@@ -973,7 +1009,7 @@ endif
 
 # Network/Discord (ugh, needs cleanup)
 ifeq ($(WINDOWS_BUILD),1)
-  LDFLAGS += -L"ws2_32" -lwsock32
+  LDFLAGS += -lws2_32 -lwsock32
   ifeq ($(DISCORD_SDK),1)
     LDFLAGS += -Wl,-Bdynamic -L./lib/discordsdk/ -ldiscord_game_sdk -Wl,-Bstatic
   endif
@@ -982,6 +1018,17 @@ else
     LDFLAGS += -ldiscord_game_sdk -Wl,-rpath . -Wl,-rpath lib/discordsdk
   endif
 endif
+
+IS_DEV_OR_DEBUG := $(or $(filter 1,$(DEVELOPMENT)),$(filter 1,$(DEBUG)),0)
+ifeq ($(IS_DEV_OR_DEBUG),0)
+  CFLAGS += -fno-ident -fno-common -ffile-prefix-map="$(PWD)"=. -D__DATE__="\"\"" -D__TIME__="\"\"" -Wno-builtin-macro-redefined
+  ifeq ($(OSX_BUILD),0)
+    LDFLAGS += -Wl,--build-id=none
+  endif
+endif
+
+# Enable ASLR
+CFLAGS += -fPIE
 
 # Prevent a crash with -sopt
 export LANG := C
@@ -1036,6 +1083,12 @@ endif
 ifeq ($(TARGET_RPI),1)
   CC_CHECK_CFLAGS += -DTARGET_RPI
   CFLAGS += -DTARGET_RPI
+endif
+
+# Check for rk3588 option
+ifeq ($(TARGET_RK3588),1)
+  CC_CHECK_CFLAGS += -DTARGET_RK3588
+  CFLAGS += -DTARGET_RK3588
 endif
 
 # Check for texture fix option
@@ -1130,8 +1183,15 @@ endef
 all: $(EXE)
 
 ifeq ($(WINDOWS_BUILD),1)
+MAPFILE = $(BUILD_DIR)/coop.map
 exemap: $(EXE)
-	$(V)$(OBJDUMP) -t $(EXE) > $(BUILD_DIR)/coop.map
+	@$(PRINT) "$(GREEN)Creating map file: $(BLUE)$(MAPFILE) $(NO_COL)\n"
+	$(V)$(OBJDUMP) -t $(EXE) > $(MAPFILE)
+	@cp $(EXE) $(EXE).bak && cp $(MAPFILE) $(MAPFILE).bak
+	$(V)$(PYTHON) $(TOOLS_DIR)/clean_mapfile.py $(EXE) $(MAPFILE)
+ifeq ($(IS_DEV_OR_DEBUG),0)
+	$(V)$(OBJCOPY) -p --strip-unneeded $(EXE)
+endif
 all: exemap
 endif
 
@@ -1180,8 +1240,6 @@ endif
 
 $(BUILD_DIR)/src/game/characters.o:   $(SOUND_SAMPLE_TABLES)
 $(SOUND_BIN_DIR)/sound_data.o:        $(SOUND_BIN_DIR)/sound_data.ctl.inc.c $(SOUND_BIN_DIR)/sound_data.tbl.inc.c $(SOUND_BIN_DIR)/sequences.bin.inc.c $(SOUND_BIN_DIR)/bank_sets.inc.c
-$(SOUND_BIN_DIR)/samples_assets.o:    $(SOUND_BIN_DIR)/samples_offsets.inc.c
-$(SOUND_BIN_DIR)/sequences_assets.o:  $(SOUND_BIN_DIR)/sequences_offsets.inc.c
 $(BUILD_DIR)/levels/scripts.o:        $(BUILD_DIR)/include/level_headers.h
 
 ifeq ($(VERSION),sh)
@@ -1310,12 +1368,17 @@ $(ENDIAN_BITWIDTH): $(TOOLS_DIR)/determine-endian-bitwidth.c
 	@$(RM) $@.dummy1
 	@$(RM) $@.dummy2
 
-$(SOUND_BIN_DIR)/sound_data.ctl: sound/sound_banks/ $(SOUND_BANK_FILES) $(SOUND_SAMPLE_AIFCS) $(ENDIAN_BITWIDTH)
-	@$(PRINT) "$(GREEN)Generating:  $(BLUE)$@ $(NO_COL)\n"
-	$(V)$(PYTHON) $(TOOLS_DIR)/assemble_sound.py $(BUILD_DIR)/sound/samples/ sound/sound_banks/ $(SOUND_BIN_DIR)/sound_data.ctl $(SOUND_BIN_DIR)/ctl_header $(SOUND_BIN_DIR)/sound_data.tbl $(SOUND_BIN_DIR)/tbl_header $(C_DEFINES) $$(cat $(ENDIAN_BITWIDTH))
+$(SOUND_BIN_DIR)/sound_data.tbl: sound/sound_data_compressed.tbl
+	@$(PRINT) "$(GREEN)Decompressing:  $(BLUE)$@ $(NO_COL)\n"
+	$(V)$(PYTHON) $(TOOLS_DIR)/decompress.py sound/sound_data_compressed.tbl $(SOUND_BIN_DIR)/sound_data.tbl
 
-$(SOUND_BIN_DIR)/sound_data.tbl: $(SOUND_BIN_DIR)/sound_data.ctl
-	@true
+$(SOUND_BIN_DIR)/sound_data.ctl: sound/sound_data_compressed.ctl
+	@$(PRINT) "$(GREEN)Decompressing:  $(BLUE)$@ $(NO_COL)\n"
+	$(V)$(PYTHON) $(TOOLS_DIR)/decompress.py sound/sound_data_compressed.ctl $(SOUND_BIN_DIR)/sound_data.ctl
+
+$(SOUND_BIN_DIR)/bank_sets: sound/bank_sets_compressed
+	@$(PRINT) "$(GREEN)Decompressing:  $(BLUE)$@ $(NO_COL)\n"
+	$(V)$(PYTHON) $(TOOLS_DIR)/decompress.py sound/bank_sets_compressed $(SOUND_BIN_DIR)/bank_sets
 
 $(SOUND_BIN_DIR)/ctl_header: $(SOUND_BIN_DIR)/sound_data.ctl
 	@true
@@ -1323,18 +1386,9 @@ $(SOUND_BIN_DIR)/ctl_header: $(SOUND_BIN_DIR)/sound_data.ctl
 $(SOUND_BIN_DIR)/tbl_header: $(SOUND_BIN_DIR)/sound_data.ctl
 	@true
 
-$(SOUND_BIN_DIR)/samples_offsets.inc.c: $(SOUND_BIN_DIR)/sound_data.ctl
-	@true
-
-$(SOUND_BIN_DIR)/sequences_offsets.inc.c: $(SOUND_BIN_DIR)/sound_data.ctl
-	@true
-
-$(SOUND_BIN_DIR)/sequences.bin: $(SOUND_BANK_FILES) sound/sequences.json $(SOUND_SEQUENCE_DIRS) $(SOUND_SEQUENCE_FILES) $(ENDIAN_BITWIDTH)
-	@$(PRINT) "$(GREEN)Generating:  $(BLUE)$@ $(NO_COL)\n"
-	$(V)$(PYTHON) $(TOOLS_DIR)/assemble_sound.py --sequences $@ $(SOUND_BIN_DIR)/sequences_header $(SOUND_BIN_DIR)/bank_sets sound/sound_banks/ sound/sequences.json $(SOUND_SEQUENCE_FILES) $(C_DEFINES) $$(cat $(ENDIAN_BITWIDTH))
-
-$(SOUND_BIN_DIR)/bank_sets: $(SOUND_BIN_DIR)/sequences.bin
-	@true
+$(SOUND_BIN_DIR)/sequences.bin:
+	@$(PRINT) "$(GREEN)Decompressing:  $(BLUE)$@ $(NO_COL)\n"
+	$(V)$(PYTHON) $(TOOLS_DIR)/decompress.py sound/sequences_compressed.bin $(SOUND_BIN_DIR)/sequences.bin
 
 $(SOUND_BIN_DIR)/sequences_header: $(SOUND_BIN_DIR)/sequences.bin
 	@true

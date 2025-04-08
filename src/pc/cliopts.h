@@ -20,13 +20,23 @@ struct CLIOptions {
     char savePath[SYS_MAX_PATH];
     char configFile[SYS_MAX_PATH];
     unsigned int fullscreen;
+    unsigned int width;
+    unsigned int height;
     bool skipIntro;
     enum NetworkType network;
     unsigned int networkPort;
     char joinIp[IP_MAX_LEN];
     char playerName[MAX_CONFIG_STRING];
+    unsigned int playerCount;
     bool hideLoadingScreen;
     bool skipUpdateCheck;
+    bool noDiscord;
+    bool coopnet;
+    char coopnetPassword[MAX_CONFIG_STRING];
+    bool disableMods;
+    int enabledModsCount;
+    char** enableMods;
+    bool headless;
 };
 
 extern struct CLIOptions gCLIOpts;

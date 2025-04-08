@@ -11,6 +11,7 @@
 #include "pc/utils/misc.h"
 
 struct DjuiThreePanel* gDjuiPlayerList = NULL;
+bool gAttemptingToOpenPlayerlist = false;
 
 static struct DjuiFlowLayout* djuiRow[MAX_PLAYERS] = { 0 };
 static struct DjuiImage* djuiImages[MAX_PLAYERS] = { 0 };
@@ -53,14 +54,22 @@ static void playerlist_update_row(u8 i, struct NetworkPlayer *np) {
     djui_base_set_color(&djuiTextDescriptions[i]->base, np->descriptionR, np->descriptionG, np->descriptionB, np->descriptionA);
     djui_text_set_text(djuiTextDescriptions[i], np->description);
 
-    djui_text_set_text(djuiTextLocations[i], get_level_name(np->currCourseNum, np->currLevelNum, np->currAreaIndex));
+    djui_text_set_text(djuiTextLocations[i],
+        np->overrideLocation[0] == '\0'
+          ? get_level_name(np->currCourseNum, np->currLevelNum, np->currAreaIndex)
+          : np->overrideLocation
+    );
     djui_text_set_text(djuiTextAct[i], sActNum);
 }
 
 void djui_panel_playerlist_on_render_pre(UNUSED struct DjuiBase* base, UNUSED bool* skipRender) {
     if (gDjuiInMainMenu || gNetworkType == NT_NONE) {
-        djui_base_set_visible(&gDjuiPlayerList->base, false);
-        djui_base_set_visible(&gDjuiModList->base, false);
+        if (gDjuiPlayerList != NULL) {
+            djui_base_set_visible(&gDjuiPlayerList->base, false);
+        }
+        if (gDjuiModList != NULL) {
+            djui_base_set_visible(&gDjuiModList->base, false);
+        }
         return;
     }
 
@@ -81,6 +90,12 @@ void djui_panel_playerlist_on_render_pre(UNUSED struct DjuiBase* base, UNUSED bo
 
 void djui_panel_playerlist_create(UNUSED struct DjuiBase* caller) {
     f32 bodyHeight = (sPlayerListSize * 32) + (sPlayerListSize - 1) * 4;
+
+    // delete old player list
+    if (gDjuiPlayerList != NULL) {
+        djui_base_destroy(&gDjuiPlayerList->base);
+        gDjuiPlayerList= NULL;
+    }
 
     struct DjuiThreePanel* panel = djui_panel_menu_create(DLANG(PLAYER_LIST, PLAYERS), false);
     djui_three_panel_set_body_size(panel, bodyHeight);

@@ -281,15 +281,12 @@ static void smlua_load_script(struct Mod* mod, struct ModFile* file, u16 remoteI
 
 void smlua_init(void) {
     smlua_shutdown();
-    smlua_cobject_allowlist_init();
-    smlua_cpointer_allowlist_init();
 
     gLuaState = luaL_newstate();
     lua_State* L = gLuaState;
 
     // load libraries
     luaopen_base(L);
-    //luaopen_coroutine(L);
 #if defined(DEVELOPMENT)
     luaL_requiref(L, "debug", luaopen_debug, 1);
     luaL_requiref(L, "io", luaopen_io, 1);
@@ -299,7 +296,8 @@ void smlua_init(void) {
     luaL_requiref(L, "math", luaopen_math, 1);
     luaL_requiref(L, "string", luaopen_string, 1);
     luaL_requiref(L, "table", luaopen_table, 1);
-    //luaopen_utf8(L);
+    luaL_requiref(L, "coroutine", luaopen_coroutine, 1);
+    // luaopen_utf8(L);
 
     smlua_bind_hooks();
     smlua_bind_cobject();
@@ -311,6 +309,7 @@ void smlua_init(void) {
     smlua_exec_str(gSmluaConstants);
 
     smlua_cobject_init_globals();
+    smlua_model_util_initialize();
 
     // load scripts
     mods_size_enforce(&gActiveMods);
@@ -344,19 +343,19 @@ void smlua_update(void) {
     audio_sample_destroy_pending_copies();
 
     smlua_call_event_hooks(HOOK_UPDATE);
+
     // Collect our garbage after calling our hooks.
     // If we don't, Lag can quickly build up from our mods.
-    /*lua_gc(L, LUA_GCSTEP, 1);
-    lua_gc(L, LUA_GCSTOP, 0);*/
-
-    // EDIT: uhh, it turns out that is not the case
-    // if we only do incremental garbage collection,
-    // eventually the garbage will build up so much
-    // that the game slows to a crawl. Messing with
-    // the GC setting is what caused Arena to get worse
-    // over time.
+    // Truth is smlua generates so much garbage that the
+    // incremental collection fails to keep up after some time.
+    // So, for now, stop the GC from running during the hooks
+    // and perform a full GC at the end of the frame.
+    // EDIT: That builds up lag over time, so we need to keep
+    // doing incremental garbage collection.
     // The real fix would be to make smlua produce less
     // garbage.
+    // lua_gc(L, LUA_GCSTOP, 0);
+    // lua_gc(L, LUA_GCCOLLECT, 0);
 }
 
 void smlua_shutdown(void) {
@@ -364,8 +363,6 @@ void smlua_shutdown(void) {
     smlua_text_utils_reset_all();
     smlua_audio_utils_reset_all();
     audio_custom_shutdown();
-    smlua_cobject_allowlist_shutdown();
-    smlua_cpointer_allowlist_shutdown();
     smlua_clear_hooks();
     smlua_model_util_clear();
     smlua_level_util_reset();

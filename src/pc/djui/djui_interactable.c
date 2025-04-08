@@ -235,15 +235,18 @@ bool djui_interactable_on_key_down(int scancode) {
         }
     }
 
-    if ((gDjuiPlayerList != NULL || gDjuiModList != NULL) && gServerSettings.enablePlayerList) {
+    if ((gDjuiPlayerList != NULL || gDjuiModList != NULL)) {
         for (int i = 0; i < MAX_BINDS; i++) {
             if (scancode == (int)configKeyPlayerList[i] && !gDjuiInMainMenu && gNetworkType != NT_NONE) {
-                if (gDjuiPlayerList != NULL) {
-                    djui_base_set_visible(&gDjuiPlayerList->base, true);
+                if (gServerSettings.enablePlayerList) {
+                    if (gDjuiPlayerList != NULL) {
+                        djui_base_set_visible(&gDjuiPlayerList->base, true);
+                    }
+                    if (gDjuiModList != NULL) {
+                        djui_base_set_visible(&gDjuiModList->base, true);
+                    }
                 }
-                if (gDjuiModList != NULL) {
-                    djui_base_set_visible(&gDjuiModList->base, true);
-                }
+                gAttemptingToOpenPlayerlist = true;
                 break;
             }
             if (gDjuiPlayerList->base.visible) {
@@ -295,6 +298,7 @@ void djui_interactable_on_key_up(int scancode) {
                 if (gDjuiModList != NULL) {
                     djui_base_set_visible(&gDjuiModList->base, false);
                 }
+                gAttemptingToOpenPlayerlist = false;
                 break;
             }
         }
@@ -322,6 +326,13 @@ void djui_interactable_on_text_input(char* text) {
     if (gInteractableFocus->interactable == NULL) { return; }
     if (gInteractableFocus->interactable->on_text_input == NULL) { return; }
     gInteractableFocus->interactable->on_text_input(gInteractableFocus, text);
+}
+
+void djui_interactable_on_text_editing(char* text, int cursorPos) {
+    if (gInteractableFocus == NULL) { return; }
+    if (gInteractableFocus->interactable == NULL) { return; }
+    if (gInteractableFocus->interactable->on_text_editing == NULL) { return; }
+    gInteractableFocus->interactable->on_text_editing(gInteractableFocus, text, cursorPos);
 }
 
 void djui_interactable_update_pad(void) {
@@ -405,17 +416,15 @@ void djui_interactable_update(void) {
     if (gInteractableFocus) {
         u16 mainButtons = PAD_BUTTON_A | PAD_BUTTON_B;
         if ((mouseButtons & MOUSE_BUTTON_1) && !(sLastMouseButtons && MOUSE_BUTTON_1) && !djui_cursor_inside_base(gInteractableFocus)) {
-            // clicked outside of focused
-            // if (!gDjuiChatBoxFocus && gDjuiChatBox != NULL && gInteractableFocus != &gDjuiChatBox->chatInput->base) {
-            //     djui_interactable_set_input_focus(NULL);
-            // }
-            djui_interactable_set_input_focus(NULL);
+            // clicked outside of focus
+            if (!gDjuiChatBoxFocus) {
+                djui_interactable_set_input_focus(NULL);
+            }
         } else if ((padButtons & mainButtons) && !(sLastInteractablePad.button & mainButtons)) {
             // pressed main face button
-            // if (!gDjuiChatBoxFocus && gDjuiChatBox != NULL && gInteractableFocus != &gDjuiChatBox->chatInput->base) {
-            //     djui_interactable_set_input_focus(NULL);
-            // }
-            djui_interactable_set_input_focus(NULL);
+            if (!gDjuiChatBoxFocus) {
+                djui_interactable_set_input_focus(NULL);
+            }
         } else {
             djui_interactable_on_focus(gInteractableFocus);
         }
@@ -517,6 +526,12 @@ void djui_interactable_hook_text_input(struct DjuiBase *base,
                                        void (*on_text_input)(struct DjuiBase*, char*)) {
     struct DjuiInteractable *interactable = base->interactable;
     interactable->on_text_input = on_text_input;
+}
+
+void djui_interactable_hook_text_editing(struct DjuiBase* base,
+                                       void (*on_text_editing)(struct DjuiBase*, char*, int)) {
+    struct DjuiInteractable *interactable = base->interactable;
+    interactable->on_text_editing = on_text_editing;
 }
 
 void djui_interactable_hook_enabled_change(struct DjuiBase *base,

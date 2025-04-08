@@ -119,29 +119,36 @@ u16 newcam_modeflags;
 s16 newcam_saved_mode = -1;
 s16 newcam_saved_defmode = -1;
 
+u8 newcam_use_dpad = FALSE;
+u8 newcam_has_collision = TRUE;
+u8 newcam_direction_locked = FALSE;
+u8 newcam_l_centering = TRUE;
+
 extern bool gDjuiInMainMenu;
 
 ///This is called at every level initialisation.
-void newcam_init(struct Camera *c, UNUSED u8 dv) {
+void newcam_init(struct Camera *c, u8 isSoftReset) {
     newcam_tilt = 1500;
     newcam_yaw = -c->yaw+0x4000; //Mario and the camera's yaw have this offset between them.
     newcam_mode = NC_MODE_NORMAL;
     ///This here will dictate what modes the camera will start in at the beginning of a level. Below are some examples.
-    switch (gCurrLevelNum) {
-        case LEVEL_BITDW: newcam_yaw = 0x4000; /*newcam_mode = NC_MODE_8D;*/ newcam_tilt = 4000; break;
-        case LEVEL_BITFS: newcam_yaw = 0x4000; /*newcam_mode = NC_MODE_8D;*/ newcam_tilt = 4000; break;
-        case LEVEL_BITS: newcam_yaw = 0x4000; /*newcam_mode = NC_MODE_8D;*/ newcam_tilt = 4000; break;
-        case LEVEL_WF: newcam_yaw = 0x4000; newcam_tilt = 2000; break;
-        case LEVEL_RR: newcam_yaw = 0x6000; newcam_tilt = 2000; break;
-        case LEVEL_CCM: if (gCurrAreaIndex == 1) {newcam_yaw = -0x4000; newcam_tilt = 2000; } else newcam_mode = NC_MODE_SLIDE; break;
-        case LEVEL_WDW: newcam_yaw = 0x2000; newcam_tilt = 3000; break;
-        case 27: newcam_mode = NC_MODE_SLIDE; break;
-        case LEVEL_TTM: if (gCurrAreaIndex == 2) newcam_mode = NC_MODE_SLIDE; break;
-    }
+    if (!isSoftReset) {
+        switch (gCurrLevelNum) {
+            case LEVEL_BITDW: newcam_yaw = 0x4000; /*newcam_mode = NC_MODE_8D;*/ newcam_tilt = 4000; break;
+            case LEVEL_BITFS: newcam_yaw = 0x4000; /*newcam_mode = NC_MODE_8D;*/ newcam_tilt = 4000; break;
+            case LEVEL_BITS: newcam_yaw = 0x4000; /*newcam_mode = NC_MODE_8D;*/ newcam_tilt = 4000; break;
+            case LEVEL_WF: newcam_yaw = 0x4000; newcam_tilt = 2000; break;
+            case LEVEL_RR: newcam_yaw = 0x6000; newcam_tilt = 2000; break;
+            case LEVEL_CCM: if (gCurrAreaIndex == 1) {newcam_yaw = -0x4000; newcam_tilt = 2000; } else newcam_mode = NC_MODE_SLIDE; break;
+            case LEVEL_WDW: newcam_yaw = 0x2000; newcam_tilt = 3000; break;
+            case 27: newcam_mode = NC_MODE_SLIDE; break;
+            case LEVEL_TTM: if (gCurrAreaIndex == 2) newcam_mode = NC_MODE_SLIDE; break;
+        }
 
-    // clear these out when entering a new level to prevent "camera mode buffering"
-    newcam_saved_defmode = -1;
-    newcam_saved_mode = -1;
+        // clear these out when entering a new level to prevent "camera mode buffering"
+        newcam_saved_defmode = -1;
+        newcam_saved_mode = -1;
+    }
 
     // this will be set in init_settings() if enabled
     newcam_active = 0;
@@ -184,15 +191,18 @@ void newcam_toggle(bool enabled) {
 
 ///These are the default settings for Puppycam. You may change them to change how they'll be set for first timers.
 void newcam_init_settings(void) {
-    newcam_sensitivityX = newcam_clamp(camera_config_get_x_sensitivity(), 1, 100) * 5;
-    newcam_sensitivityY = newcam_clamp(camera_config_get_y_sensitivity(), 1, 100) * 5;
-    newcam_aggression   = newcam_clamp(camera_config_get_aggression(), 0, 100);
-    newcam_panlevel     = newcam_clamp(camera_config_get_pan_level(), 0, 100);
-    newcam_invertX      = (s16)camera_config_is_x_inverted();
-    newcam_invertY      = (s16)camera_config_is_y_inverted();
-    newcam_mouse        = (u8)camera_config_is_mouse_look_enabled();
-    newcam_analogue     = (s16)camera_config_is_analog_cam_enabled();
-    newcam_degrade      = (f32)camera_config_get_deceleration();
+    newcam_sensitivityX     = newcam_clamp(camera_config_get_x_sensitivity(), 1, 100) * 5;
+    newcam_sensitivityY     = newcam_clamp(camera_config_get_y_sensitivity(), 1, 100) * 5;
+    newcam_aggression       = newcam_clamp(camera_config_get_aggression(), 0, 100);
+    newcam_panlevel         = newcam_clamp(camera_config_get_pan_level(), 0, 100);
+    newcam_invertX          = (s16)camera_config_is_x_inverted();
+    newcam_invertY          = (s16)camera_config_is_y_inverted();
+    newcam_mouse            = (u8)camera_config_is_mouse_look_enabled();
+    newcam_analogue         = (s16)camera_config_is_analog_cam_enabled();
+    newcam_degrade          = (f32)camera_config_get_deceleration();
+    newcam_use_dpad         = (u8)camera_config_is_dpad_enabled();
+    newcam_has_collision    = (u8)camera_config_is_collision_enabled();
+    newcam_l_centering      = (u8)camera_config_get_centering();
 
     // setup main menu camera
     if (gDjuiInMainMenu) { newcam_tilt = 5; }
@@ -201,15 +211,18 @@ void newcam_init_settings(void) {
 }
 
 void newcam_init_settings_override(bool override) {
-    newcam_sensitivityX = newcam_clamp(camera_config_get_x_sensitivity(), 1, 100) * 5;
-    newcam_sensitivityY = newcam_clamp(camera_config_get_y_sensitivity(), 1, 100) * 5;
-    newcam_aggression   = newcam_clamp(camera_config_get_aggression(), 0, 100);
-    newcam_panlevel     = newcam_clamp(camera_config_get_pan_level(), 0, 100);
-    newcam_invertX      = (s16)camera_config_is_x_inverted();
-    newcam_invertY      = (s16)camera_config_is_y_inverted();
-    newcam_mouse        = (u8)camera_config_is_mouse_look_enabled();
-    newcam_analogue     = (s16)camera_config_is_analog_cam_enabled();
-    newcam_degrade      = (f32)camera_config_get_deceleration();
+    newcam_sensitivityX     = newcam_clamp(camera_config_get_x_sensitivity(), 1, 100) * 5;
+    newcam_sensitivityY     = newcam_clamp(camera_config_get_y_sensitivity(), 1, 100) * 5;
+    newcam_aggression       = newcam_clamp(camera_config_get_aggression(), 0, 100);
+    newcam_panlevel         = newcam_clamp(camera_config_get_pan_level(), 0, 100);
+    newcam_invertX          = (s16)camera_config_is_x_inverted();
+    newcam_invertY          = (s16)camera_config_is_y_inverted();
+    newcam_mouse            = (u8)camera_config_is_mouse_look_enabled();
+    newcam_analogue         = (s16)camera_config_is_analog_cam_enabled();
+    newcam_degrade          = (f32)camera_config_get_deceleration();
+    newcam_use_dpad         = (u8)camera_config_is_dpad_enabled();
+    newcam_has_collision    = (u8)camera_config_is_collision_enabled();
+    newcam_l_centering      = (u8)camera_config_get_centering();
 
     // setup main menu camera
     if (gDjuiInMainMenu) { newcam_tilt = 5; }
@@ -286,6 +299,7 @@ static int ivrt(u8 axis) {
 static void newcam_rotate_button(void) {
     f32 intendedXMag;
     f32 intendedYMag;
+    s16 prevNewcamYaw = newcam_yaw_acc;
 
     if ((newcam_modeflags & NC_FLAG_8D || newcam_modeflags & NC_FLAG_4D) && newcam_modeflags & NC_FLAG_XTURN) {
         //8 directional camera rotation input for buttons.
@@ -400,12 +414,39 @@ static void newcam_rotate_button(void) {
     }
 
     if ((newcam_mouse == 1) && !gDjuiInMainMenu && !gDjuiChatBoxFocus && !gDjuiConsoleFocus) {
-        newcam_yaw += ivrt(0) * mouse_x * 16;
+        if (!newcam_use_dpad || !newcam_direction_locked) {
+            newcam_yaw += ivrt(0) * mouse_x * 16;
+        }
         newcam_tilt += ivrt(1) * mouse_y * 16;
+    }
+
+    // Dpad behaviors
+    if (newcam_use_dpad) {
+        // Make dpad up head to the nearest cardinal direction
+        if (gPlayer1Controller->buttonPressed & U_JPAD) {
+            newcam_yaw = snap_to_45_degrees(newcam_yaw);
+        }
+        // Make dpad left/right increment 45 degrees
+        else if (gPlayer1Controller->buttonPressed & L_JPAD) { newcam_yaw += ivrt(0)*DEGREES(45); }
+        else if (gPlayer1Controller->buttonPressed & R_JPAD) { newcam_yaw -= ivrt(0)*DEGREES(45); }
+        // Make dpad down lock the current camera direction
+        else if (gPlayer1Controller->buttonPressed & D_JPAD) {
+            newcam_direction_locked = !newcam_direction_locked;
+        }
+    }
+
+    if (newcam_use_dpad && newcam_direction_locked) {
+        newcam_yaw_acc = prevNewcamYaw;
     }
 }
 
 static void newcam_zoom_button(void) {
+    if (gDjuiInMainMenu) {
+        newcam_distance = 750;
+        newcam_distance_target = 750;
+        return;
+    }
+    
     //Smoothly move the camera to the new spot.
     if (newcam_distance > newcam_distance_target) {
         newcam_distance -= 250;
@@ -418,7 +459,7 @@ static void newcam_zoom_button(void) {
             newcam_distance = newcam_distance_target;
     }
 
-    if ((gPlayer1Controller->buttonDown & L_TRIG) && (newcam_modeflags & NC_FLAG_ZOOM)) {
+    if (newcam_l_centering && (gPlayer1Controller->buttonPressed & L_TRIG) && (newcam_modeflags & NC_FLAG_ZOOM)) {
         //When you press L, set the flag for centering the camera. Afterwards, start setting the yaw to the Player's yaw at the time.
         newcam_yaw_target = -gMarioStates[0].faceAngle[1]-0x4000;
         newcam_centering = 1;
@@ -453,15 +494,15 @@ static void newcam_update_values(void) {
 
     if (newcam_modeflags & NC_FLAG_XTURN)
         newcam_yaw -= ((newcam_yaw_acc*(newcam_sensitivityX/10))*ivrt(0));
-    if (((newcam_tilt <= 15000) && (newcam_tilt >= -15000)) && newcam_modeflags & NC_FLAG_YTURN)
+    if (((newcam_tilt <= 0x3000) && (newcam_tilt >= -0x3000)) && newcam_modeflags & NC_FLAG_YTURN)
         newcam_tilt += ((newcam_tilt_acc*ivrt(1))*(newcam_sensitivityY/10));
 
-    if (newcam_tilt > 15000)
-        newcam_tilt = 15000;
-    if (newcam_tilt < -15000 && gMarioStates[0].pos[1] - gMarioStates[0].floorHeight > 20)
-        newcam_tilt = -15000;
-    if (newcam_tilt < -12000 && gMarioStates[0].pos[1] - gMarioStates[0].floorHeight < 20)
-        newcam_tilt = -12000;
+    if (newcam_tilt > 0x3000)
+        newcam_tilt = 0x3000;
+    if (newcam_tilt < -0x3000 && gMarioStates[0].pos[1] - gMarioStates[0].floorHeight > 20)
+        newcam_tilt = -0x3000;
+    if (newcam_tilt < -0x3000 && gMarioStates[0].pos[1] - gMarioStates[0].floorHeight < 20)
+        newcam_tilt = -0x3000;
 
     if (newcam_turnwait > 0 && gMarioStates[0].vel[1] == 0) {
         newcam_turnwait -= 1;
@@ -623,6 +664,12 @@ static void newcam_collision(void) {
 }
 
 static void newcam_set_pan(void) {
+    if (gDjuiInMainMenu) {
+        newcam_pan_x = 0;
+        newcam_pan_z = 0;
+        return;
+    }
+
     //Apply panning values based on Mario's direction.
     if (gMarioStates[0].action != ACT_HOLDING_BOWSER && gMarioStates[0].action != ACT_SLEEPING && gMarioStates[0].action != ACT_START_SLEEPING) {
         approach_f32_asymptotic_bool(&newcam_pan_x, lengthdir_x((160*newcam_panlevel)/100, -gMarioStates[0].faceAngle[1]-0x4000), 0.05);
@@ -678,7 +725,7 @@ static void newcam_position_cam(void) {
         newcam_lookat[2] = newcam_pos_target[2]-newcam_pan_z;
 
     newcam_level_bounds();
-    if (newcam_modeflags & NC_FLAG_COLLISION) {
+    if (newcam_has_collision && newcam_modeflags & NC_FLAG_COLLISION) {
         newcam_collision();
     }
 

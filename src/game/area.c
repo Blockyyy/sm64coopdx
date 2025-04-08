@@ -28,6 +28,7 @@
 #include "pc/djui/djui.h"
 #include "pc/djui/djui_panel_pause.h"
 #include "pc/nametags.h"
+#include "engine/lighting_engine.h"
 
 struct SpawnInfo gPlayerSpawnInfos[MAX_PLAYERS];
 struct Area gAreaData[MAX_AREAS];
@@ -82,8 +83,8 @@ const BehaviorScript *sWarpBhvSpawnTable[] = {
 };
 
 u8 sSpawnTypeFromWarpBhv[] = {
-    MARIO_SPAWN_DOOR_WARP,             MARIO_SPAWN_UNKNOWN_02,           MARIO_SPAWN_UNKNOWN_03,            MARIO_SPAWN_UNKNOWN_03,
-    MARIO_SPAWN_UNKNOWN_03,            MARIO_SPAWN_TELEPORT,             MARIO_SPAWN_INSTANT_ACTIVE,        MARIO_SPAWN_AIRBORNE,
+    MARIO_SPAWN_DOOR_WARP,             MARIO_SPAWN_IDLE,                 MARIO_SPAWN_PIPE,                  MARIO_SPAWN_PIPE,
+    MARIO_SPAWN_PIPE,                  MARIO_SPAWN_TELEPORT,             MARIO_SPAWN_INSTANT_ACTIVE,        MARIO_SPAWN_AIRBORNE,
     MARIO_SPAWN_HARD_AIR_KNOCKBACK,    MARIO_SPAWN_SPIN_AIRBORNE_CIRCLE, MARIO_SPAWN_DEATH,                 MARIO_SPAWN_SPIN_AIRBORNE,
     MARIO_SPAWN_FLYING,                MARIO_SPAWN_SWIMMING,             MARIO_SPAWN_PAINTING_STAR_COLLECT, MARIO_SPAWN_PAINTING_DEATH,
     MARIO_SPAWN_AIRBORNE_STAR_COLLECT, MARIO_SPAWN_AIRBORNE_DEATH,       MARIO_SPAWN_LAUNCH_STAR_COLLECT,   MARIO_SPAWN_LAUNCH_DEATH,
@@ -180,7 +181,7 @@ struct ObjectWarpNode *area_get_any_warp_node(void) {
     struct ObjectWarpNode *pick = NULL;
 
     for (node = gCurrentArea->warpNodes; node != NULL; node = node->next) {
-        if (node->node.destLevel != gCurrLevelNum) { continue; }
+        if ((node->node.destLevel & 0x7F) != gCurrLevelNum) { continue; }
         if (!pick) { pick = node; continue; }
         if (node->node.destArea < pick->node.destArea) { pick = node; }
     }
@@ -248,6 +249,8 @@ void clear_areas(void) {
         gAreaData[i].musicParam = 0;
         gAreaData[i].musicParam2 = 0;
     }
+
+    le_clear();
 }
 
 void clear_area_graph_nodes(void) {

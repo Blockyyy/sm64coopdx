@@ -16,12 +16,31 @@
 #include "pc/discord/discord.h"
 #endif
 #include "game/mario.h"
+#include "pc/djui/djui_unicode.h"
 
 struct NetworkPlayer gNetworkPlayers[MAX_PLAYERS] = { 0 };
 struct NetworkPlayer *gNetworkPlayerLocal = NULL;
 struct NetworkPlayer *gNetworkPlayerServer = NULL;
 static char sDefaultPlayerName[] = "Player";
 static char sDefaultDiscordId[] = "0";
+
+bool network_player_name_valid(char* buffer) {
+    if (buffer[0] == '\0') { return false; }
+    u16 numEscapeChars = 0;
+    bool isOnlyEscapeChars = true;
+    bool isInEscapedChar = false;
+    char* c = buffer;
+    while (*c != '\0') {
+        if (*c == ' ') { return false; }
+        if (!djui_unicode_valid_char(c)) { return false; }
+        if (*c == '\\') { numEscapeChars++; isInEscapedChar = !isInEscapedChar; }
+        else if (!isInEscapedChar) { isOnlyEscapeChars = false; }
+        c = djui_unicode_next_char(c);
+    }
+    if (isOnlyEscapeChars) { return false; }
+    if (numEscapeChars % 2 != 0) { return false; }
+    return true;
+}
 
 void network_player_init(void) {
     gNetworkPlayers[0].modelIndex = (configPlayerModel < CT_MAX) ? configPlayerModel : CT_MARIO;
@@ -40,7 +59,7 @@ void network_player_update_model(u8 localIndex) {
     if (index >= CT_MAX) { index = 0; }
     m->character = &gCharacters[index];
 
-    if (m->marioObj == NULL) { return; }
+    if (m->marioObj == NULL || m->marioObj->behavior != smlua_override_behavior(bhvMario)) { return; }
     obj_set_model(m->marioObj, m->character->modelId);
 }
 
@@ -72,6 +91,16 @@ void network_player_set_description(struct NetworkPlayer *np, const char *descri
     np->descriptionG = g;
     np->descriptionB = b;
     np->descriptionA = a;
+}
+
+void network_player_set_override_location(struct NetworkPlayer *np, const char *location) {
+    if (np == NULL) { return; }
+
+    if (location != NULL) {
+        snprintf(np->overrideLocation, 256, "%s", location);
+    } else {
+        np->overrideLocation[0] = '\0';
+    }
 }
 
 struct NetworkPlayer *network_player_from_global_index(u8 globalIndex) {
@@ -242,8 +271,8 @@ u8 network_player_connected(enum NetworkPlayerType type, u8 globalIndex, u8 mode
     }
     struct NetworkPlayer *np = &gNetworkPlayers[localIndex];
 
-    // ensure that a name is given
-    if (name[0] == '\0') {
+    // ensure that a valid name is given
+    if (!network_player_name_valid((char*)name)) {
         name = sDefaultPlayerName;
     }
     if (discordId[0] == '\0') {
@@ -330,7 +359,9 @@ u8 network_player_connected(enum NetworkPlayerType type, u8 globalIndex, u8 mode
     smlua_call_event_hooks_mario_param(HOOK_ON_PLAYER_CONNECTED, &gMarioStates[localIndex]);
 
 #ifdef DISCORD_SDK
-    discord_activity_update();
+    if (gDiscordInitialized) {
+        discord_activity_update();
+    }
 #endif
 
     return localIndex;
@@ -382,7 +413,9 @@ u8 network_player_disconnected(u8 globalIndex) {
         memset(np, 0, sizeof(struct NetworkPlayer));
 
 #ifdef DISCORD_SDK
-        discord_activity_update();
+        if (gDiscordInitialized) {
+            discord_activity_update();
+        }
 #endif
 
         // reset mario state
