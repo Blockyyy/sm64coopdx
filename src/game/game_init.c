@@ -28,6 +28,7 @@
 #include "hud.h"
 #include "pc/controller/controller_mouse.h"
 #include "pc/configfile.h"
+#include "src/engine/math_util.h"
 
 // FIXME: I'm not sure all of these variables belong in this file, but I don't
 // know of a good way to split them
@@ -459,6 +460,7 @@ void run_demo_inputs(void) {
 }
 
 #define INPUT_BUFFER_MAX_DELAY 15
+#define INPUT_BUFFER_SIZE INPUT_BUFFER_MAX_DELAY + 1
 
 static struct {
     s16 rawStickX;
@@ -466,7 +468,7 @@ static struct {
     s16 extStickX;
     s16 extStickY;
     u16 buttonDown;
-} sInputBuffer[INPUT_BUFFER_MAX_DELAY + 1];
+} sInputBuffer[INPUT_BUFFER_SIZE];
 
 static u8 sInputBufferHead = 0;
 
@@ -486,7 +488,7 @@ void read_controller_inputs(void) {
         // if we're receiving inputs, update the controller struct
         // with the new button info.
         if (controller->controllerData != NULL) {
-            s32 delay = (configInputDelay > INPUT_BUFFER_MAX_DELAY) ? INPUT_BUFFER_MAX_DELAY : configInputDelay;
+            s32 delay = min((s32)configInputDelay, (s32)INPUT_BUFFER_MAX_DELAY);
 
             sInputBuffer[sInputBufferHead].rawStickX  = controller->controllerData->stick_x;
             sInputBuffer[sInputBufferHead].rawStickY  = controller->controllerData->stick_y;
@@ -494,7 +496,7 @@ void read_controller_inputs(void) {
             sInputBuffer[sInputBufferHead].extStickY  = controller->controllerData->ext_stick_y;
             sInputBuffer[sInputBufferHead].buttonDown = controller->controllerData->button;
 
-            s32 tail = (sInputBufferHead - delay + (INPUT_BUFFER_MAX_DELAY + 1)) % (INPUT_BUFFER_MAX_DELAY + 1);
+            s32 tail = (sInputBufferHead - delay + (INPUT_BUFFER_SIZE)) % (INPUT_BUFFER_SIZE);
             u16 delayedButton = sInputBuffer[tail].buttonDown;
 
             controller->rawStickX = sInputBuffer[tail].rawStickX;
@@ -507,7 +509,7 @@ void read_controller_inputs(void) {
             controller->buttonDown = delayedButton;
             adjust_analog_stick(controller);
 
-            sInputBufferHead = (sInputBufferHead + 1) % (INPUT_BUFFER_MAX_DELAY + 1);
+            sInputBufferHead = (sInputBufferHead + 1) % (INPUT_BUFFER_SIZE);
         } else if (i != 0) {
             // otherwise, if the controllerData is NULL, 0 out all of the inputs.
             controller->rawStickX = 0;
