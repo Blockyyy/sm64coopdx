@@ -540,7 +540,7 @@ static struct ShaderProgram *gfx_opengl_create_and_load_new_shader(struct ColorC
     }
 
     if (opt_alpha && opt_dither) {
-        append_line(fs_buf, &fs_len, "texel.a *= floor(noise + 0.5);");
+        append_line(fs_buf, &fs_len, "texel.a = noise < texel.a ? 1.0 : 0.0;");
     }
 
     if (opt_alpha) {
