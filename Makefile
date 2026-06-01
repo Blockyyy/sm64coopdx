@@ -22,10 +22,10 @@ DEBUG ?= 0
 # Enable development/testing flags
 DEVELOPMENT ?= 0
 
-# Enable this if you want to use some very unsafe and potentially harmful code
+# Enable this if you want to use some very unsafe and potentially harmful code from the Lua standard libs
 # that is normally disabled to prevent catastrophic accidents.
 # Only enable this if you know exactly why you need it and will take measures to mitigate the risks.
-THIS_IS_VERY_UNSAFE_AND_I_KNOW_WHAT_IM_DOING ?= 0
+LUA_UNSAFE ?= 0
 
 # Build for the N64 (turn this off for ports)
 TARGET_N64 = 0
@@ -1014,9 +1014,13 @@ ifeq ($(DEVELOPMENT),1)
 endif
 
 # Check for unsafe mode option
-ifeq ($(THIS_IS_VERY_UNSAFE_AND_I_KNOW_WHAT_IM_DOING),1)
-  CC_CHECK_CFLAGS += -DTHIS_IS_VERY_UNSAFE_AND_I_KNOW_WHAT_IM_DOING
-  CFLAGS += -DTHIS_IS_VERY_UNSAFE_AND_I_KNOW_WHAT_IM_DOING
+ifeq ($(LUA_UNSAFE),1)
+  ifeq ($(DEVELOPMENT),1)
+    CC_CHECK_CFLAGS += -DLUA_UNSAFE
+    CFLAGS += -DLUA_UNSAFE
+  else
+    $(error LUA_UNSAFE cannot be enabled outside of development mode)
+  endif
 endif
 
 # Check for rpi option
@@ -1545,6 +1549,7 @@ all:
     cp build/us_pc/libdiscord_game_sdk.dylib $(APP_MACOS_DIR); \
     cp build/us_pc/libcoopnet.dylib $(APP_MACOS_DIR); \
     cp build/us_pc/coopdx_updater $(APP_MACOS_DIR); \
+    codesign --force --deep --sign - $(APP_MACOS_DIR)/coopdx_updater; \
     cp build/us_pc/libjuice.1.6.2.dylib $(APP_MACOS_DIR); \
     cp $(SDL2_LIB) $(APP_MACOS_DIR)/libSDL2.dylib; \
     install_name_tool -change $(BREW_PREFIX)/lib/libSDL2-2.0.0.dylib @executable_path/libSDL2.dylib $(APP_MACOS_DIR)/sm64coopdx > /dev/null 2>&1; \
@@ -1574,7 +1579,6 @@ all:
 		echo '    <string>icon</string>' >> $(APP_CONTENTS_DIR)/Info.plist; \
 		echo '    <key>CFBundleDisplayName</key>' >> $(APP_CONTENTS_DIR)/Info.plist; \
 		echo '    <string>sm64coopdx</string>' >> $(APP_CONTENTS_DIR)/Info.plist; \
-		echo '    <!-- Add other keys and values here -->' >> $(APP_CONTENTS_DIR)/Info.plist; \
 		echo '</dict>' >> $(APP_CONTENTS_DIR)/Info.plist; \
 		echo '</plist>' >> $(APP_CONTENTS_DIR)/Info.plist; \
 		chmod +x $(APP_MACOS_DIR)/sm64coopdx; \
