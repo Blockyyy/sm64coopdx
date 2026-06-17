@@ -460,7 +460,7 @@ void run_demo_inputs(void) {
 }
 
 #define INPUT_BUFFER_MAX_DELAY 15
-#define INPUT_BUFFER_SIZE INPUT_BUFFER_MAX_DELAY + 1
+#define INPUT_BUFFER_SIZE (INPUT_BUFFER_MAX_DELAY + 1)
 
 static struct {
     s16 rawStickX;
@@ -495,7 +495,7 @@ void read_controller_inputs(void) {
             sInputBuffer[sInputBufferHead].buttonDown = controller->controllerData->button;
             
             s32 delay = clamp((s32)configInputDelay, 0, INPUT_BUFFER_MAX_DELAY);
-            s32 tail = (sInputBufferHead - delay + (INPUT_BUFFER_SIZE)) % (INPUT_BUFFER_SIZE);
+            s32 tail = (sInputBufferHead - delay + INPUT_BUFFER_SIZE) % INPUT_BUFFER_SIZE;
             u16 delayedButton = sInputBuffer[tail].buttonDown;
 
             controller->rawStickX = sInputBuffer[tail].rawStickX;
@@ -508,7 +508,7 @@ void read_controller_inputs(void) {
             controller->buttonDown = delayedButton;
             adjust_analog_stick(controller);
 
-            sInputBufferHead = (sInputBufferHead + 1) % (INPUT_BUFFER_SIZE);
+            sInputBufferHead = (sInputBufferHead + 1) % INPUT_BUFFER_SIZE;
         } else if (i != 0) {
             // otherwise, if the controllerData is NULL, 0 out all of the inputs.
             controller->rawStickX = 0;
