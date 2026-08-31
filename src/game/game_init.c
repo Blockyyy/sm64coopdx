@@ -459,9 +459,6 @@ void run_demo_inputs(void) {
     }
 }
 
-#define INPUT_BUFFER_MAX_DELAY 15
-#define INPUT_BUFFER_SIZE (INPUT_BUFFER_MAX_DELAY + 1)
-
 static struct {
     s16 rawStickX;
     s16 rawStickY;

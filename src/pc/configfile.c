@@ -851,6 +851,8 @@ NEXT_OPTION:
         configAmountOfPlayers = MIN(gCLIOpts.playerCount, MAX_PLAYERS);
     }
 
+    if (configInputDelay > INPUT_BUFFER_MAX_DELAY) { configInputDelay = INPUT_BUFFER_MAX_DELAY; }
+
 #ifndef COOPNET
     configNetworkSystem = NS_SOCKET;
 #endif
